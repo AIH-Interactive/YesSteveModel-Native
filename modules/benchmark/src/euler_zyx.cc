@@ -14,7 +14,7 @@
 
 #include "cpu.h"
 #include "inline.h"
-#include "math/euler.h"
+#include "gfx/math/euler.h"
 
 namespace ysm::benchmarking {
 namespace {
@@ -52,7 +52,7 @@ YSM_NOINLINE void CglmEulerZYXBaseline(vec3 angles,
 
 YSM_NOINLINE void YsmEulerZYXBaseline(vec3 angles,
                                      mat4 destination) noexcept {
-    math::EulerZYX(simd::GenericTag{}, angles, destination);
+    gfx::math::EulerZYX(simd::GenericTag{}, angles, destination);
 }
 
 #ifdef YSM_X64
@@ -64,7 +64,7 @@ YSM_TARGET_AVX2 YSM_NOINLINE void CglmEulerZYXAvx2(
 
 YSM_TARGET_AVX2 YSM_NOINLINE void YsmEulerZYXAvx2(
     vec3 angles, mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::AVX2>{}, angles, destination);
+    gfx::math::EulerZYX(simd::Tag<simd::Type::AVX2>{}, angles, destination);
 }
 
 YSM_TARGET_AVX512 YSM_NOINLINE void CglmEulerZYXAvx512(
@@ -74,7 +74,7 @@ YSM_TARGET_AVX512 YSM_NOINLINE void CglmEulerZYXAvx512(
 
 YSM_TARGET_AVX512 YSM_NOINLINE void YsmEulerZYXAvx512(
     vec3 angles, mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::AVX512>{}, angles, destination);
+    gfx::math::EulerZYX(simd::Tag<simd::Type::AVX512>{}, angles, destination);
 }
 
 std::vector<Variant> SupportedVariants() {
@@ -98,7 +98,7 @@ std::vector<Variant> SupportedVariants() {
 
 YSM_NOINLINE void YsmEulerZYXNeon(
     vec3 angles, mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::NEON>{}, angles, destination);
+    gfx::math::EulerZYX(simd::Tag<simd::Type::NEON>{}, angles, destination);
 }
 
 std::vector<Variant> SupportedVariants() {

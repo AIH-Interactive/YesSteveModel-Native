@@ -2,8 +2,7 @@
 /out/*
 /build/*
 /local/*
-/.idea
-/.vs
+/.*/
 /CMakeUserPresets.json
 /conan/cache
 __pycache__

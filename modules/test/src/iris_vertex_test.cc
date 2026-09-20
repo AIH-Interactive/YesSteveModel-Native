@@ -1,17 +1,17 @@
 #include <gtest/gtest.h>
 
-#include "renderer/vertex/iris_54.h"
-#include "renderer/vertex/iris_55.h"
-#include "renderer/vertex/iris_56.h"
-#include "renderer/vertex/iris_56_ar.h"
+#include "gfx/renderer/vertex/iris_54.h"
+#include "gfx/renderer/vertex/iris_55.h"
+#include "gfx/renderer/vertex/iris_56.h"
+#include "gfx/renderer/vertex/iris_56_ar.h"
 
 namespace ysm::test {
 
 TEST(IrisVertexTest, SetTangent) {
-    renderer::vertex::Iris54Vertex iris54;
-    renderer::vertex::Iris55Vertex iris55;
-    renderer::vertex::Iris56Vertex iris56;
-    renderer::vertex::Iris56ArVertex iris56_ar;
+    gfx::renderer::vertex::Iris54Vertex iris54;
+    gfx::renderer::vertex::Iris55Vertex iris55;
+    gfx::renderer::vertex::Iris56Vertex iris56;
+    gfx::renderer::vertex::Iris56ArVertex iris56_ar;
     iris54.SetIrisTangent(1);
     iris55.SetIrisTangent(2);
     iris56.SetIrisTangent(3);

@@ -2,11 +2,11 @@
 
 #include <gtest/gtest.h>
 
-#include "math/pose_stack.h"
+#include "gfx/math/pose_stack.h"
 
 namespace ysm::test {
 TEST(PoseStackTest, MaintainsDirectionStateAcrossHierarchy) {
-    math::PoseStack stack;
+    gfx::math::PoseStack stack;
     stack.Reserve(3);
 
     simd::GenericTag tag;
@@ -50,10 +50,10 @@ TEST(PoseStackTest, MaintainsDirectionStateAcrossHierarchy) {
 }
 
 TEST(PoseStackTest, CopiesPoseIntoNativeSnapshotLayout) {
-    math::PoseStack stack;
+    gfx::math::PoseStack stack;
     stack.Scale(simd::GenericTag{}, -2.0f, 3.0f, 4.0f);
 
-    math::PoseStack::Pose snapshot;
+    gfx::math::PoseStack::Pose snapshot;
     stack.Last().CopyTo(snapshot);
     EXPECT_FALSE(snapshot.uniform_scale);
     EXPECT_FLOAT_EQ(snapshot.tangent_orientation, -1.0f);

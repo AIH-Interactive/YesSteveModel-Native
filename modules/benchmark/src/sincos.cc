@@ -15,7 +15,7 @@
 
 #include "cpu.h"
 #include "inline.h"
-#include "math/euler.h"
+#include "gfx/math/euler.h"
 
 namespace ysm::benchmarking {
 namespace {
@@ -38,13 +38,13 @@ struct Variant {
 
 YSM_TARGET_AVX2 YSM_NOINLINE void ApproxAvx2(float* values) noexcept {
     const auto [sin, cos] =
-        math::internal::SinCosApproxFmaAvx2(_mm_load_ps(values));
+        gfx::math::internal::SinCosApproxFmaAvx2(_mm_load_ps(values));
     _mm_store_ps(values, _mm_add_ps(sin, cos));
 }
 
 YSM_TARGET_AVX512 YSM_NOINLINE void ApproxAvx512(float* values) noexcept {
     const auto [sin, cos] =
-        math::internal::SinCosApproxFmaAvx512(_mm_load_ps(values));
+        gfx::math::internal::SinCosApproxFmaAvx512(_mm_load_ps(values));
     _mm_store_ps(values, _mm_add_ps(sin, cos));
 }
 

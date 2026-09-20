@@ -3,9 +3,9 @@
 #include <array>
 #include <string>
 
-#include <algo/compress.h>
+#include <codec/zstd.h>
 
-namespace ysm::algo {
+namespace ysm::codec {
 namespace {
 BufferManaged Compress(BufferViewR input) {
     auto bound = ZstdGetCompressMaxSize(input.size()).value();
@@ -54,4 +54,4 @@ TEST(ZstdTest, FixedOutputRejectsCorruptFrame) {
     EXPECT_NE(result.status().message().find("zstd frame"), std::string::npos);
 }
 }  // namespace
-}  // namespace ysm::algo
+}  // namespace ysm::codec

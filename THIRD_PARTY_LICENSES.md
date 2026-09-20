@@ -60,8 +60,10 @@ sources in `third-party/*/conandata.yml`.
 
 | Component | Local file | Upstream reference | License | Notes |
 | --- | --- | --- | --- | --- |
+| floodyberry ChaCha/XChaCha reference | [`modules/legacy/src/format/envelope.cc`](modules/legacy/src/format/envelope.cc) | Historical YSM source snapshot; exact upstream commit not recorded | Public Domain OR MIT | The legacy importer contains a portable C++ implementation of the format-critical ChaCha/HChaCha operations and YSM state mutation, rather than the historical runtime-selected assembly library. |
+| CityHash 1.1.1 historical YSM fork | [`modules/legacy/src/v3/codec/modified_city_hash.cc`](modules/legacy/src/v3/codec/modified_city_hash.cc) | Historical YSM source snapshot; exact upstream commit not recorded | MIT | Only the 64-bit format-critical implementation is retained. The historical constants and `uint128` field order are intentionally preserved. The complete license text is embedded in the local source. |
 | STX `CStringView` | [`modules/core/src/c_string_view.h`](modules/core/src/c_string_view.h) | [STX file at 79b4ce0](https://github.com/lamarrr/STX/blob/79b4ce0c2565e0fe70c9953e8d6cefbde8f0a0ab/include/stx/c_string_view.h) | [MIT](https://github.com/lamarrr/STX/blob/79b4ce0c2565e0fe70c9953e8d6cefbde8f0a0ab/LICENSE) | The local file identifies STX as its source; the exact imported revision is not recorded. |
-| MiniOgg | [`modules/core/src/codec/mini_ogg.h`](modules/core/src/codec/mini_ogg.h) | Provenance not recorded | [0BSD](modules/core/src/codec/mini_ogg.h) | Copyright 2023 John Regan; the complete license text is embedded in the local header. |
+| MiniOgg | [`modules/codec/include/codec/mini_ogg.h`](modules/codec/include/codec/mini_ogg.h) | Provenance not recorded | [0BSD](modules/codec/include/codec/mini_ogg.h) | Copyright 2023 John Regan; the complete license text is embedded in the local header. |
 
 ## Exclusions
 

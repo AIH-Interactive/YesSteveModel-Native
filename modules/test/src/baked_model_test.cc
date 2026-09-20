@@ -8,18 +8,18 @@
 #include <gtest/gtest.h>
 #include <ylt/struct_pb.hpp>
 
-#include "bake/baked_model.h"
-#include "bake/baked_serializer.h"
-#include "bake/fbs/baked_model_generated.h"
-#include "bake/pb/geo_model.proto.h"
+#include "gfx/bake/baked_model.h"
+#include "gfx/bake/baked_serializer.h"
+#include "gfx/bake/fbs/baked_model_generated.h"
 #include "cpu.h"
+#include "proto/asset/model/data/geo_model.proto.h"
 
 namespace ysm::test {
 namespace {
 
-bake::pb::CubeLegacy MakeQuad(float max_uv) {
-    bake::pb::CubeLegacy cube;
-    cube.face_count = 1;
+proto::asset::model::data::CubeLegacy MakeQuad(float max_uv) {
+    proto::asset::model::data::CubeLegacy cube;
+    cube.faceCount = 1;
     cube.pos = {0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0};
     cube.pos_indices = {0, 1, 2, 3};
     cube.uv = {0, 0, max_uv, 0, max_uv, max_uv, 0, max_uv};
@@ -28,9 +28,9 @@ bake::pb::CubeLegacy MakeQuad(float max_uv) {
     return cube;
 }
 
-bake::pb::CubeLegacy MakeSixFaceCube(float max_uv) {
+proto::asset::model::data::CubeLegacy MakeSixFaceCube(float max_uv) {
     auto cube = MakeQuad(max_uv);
-    cube.face_count = 6;
+    cube.faceCount = 6;
     const auto pos_indices = cube.pos_indices;
     const auto uv_indices = cube.uv_indices;
     const auto normal = cube.normal;
@@ -44,13 +44,13 @@ bake::pb::CubeLegacy MakeSixFaceCube(float max_uv) {
     return cube;
 }
 
-std::string SerializeSingleCube(bake::pb::CubeLegacy cube) {
-    bake::pb::GeoModel model;
+std::string SerializeSingleCube(proto::asset::model::data::CubeLegacy cube) {
+    proto::asset::model::data::GeoModel model;
     model.bones.resize(1);
     model.bones[0].name = "root";
     model.bones[0].pivot = {0, 0, 0};
     model.bones[0].rotate = {0, 0, 0};
-    model.bones[0].cube_count = 1;
+    model.bones[0].cubeCount = 1;
     model.cubes.cubes_legacy.push_back(std::move(cube));
     std::string protobuf;
     struct_pb::to_pb(model, protobuf);
@@ -63,7 +63,7 @@ TEST(BakedModelTest, BakeRoundTrip) {
     simd::Mock(simd::Type::SSE41);
 #endif
 
-    bake::pb::GeoModel model;
+    proto::asset::model::data::GeoModel model;
     model.bones.resize(2);
     model.bones[0].name = "child";
     model.bones[0].parent = "root";
@@ -72,28 +72,28 @@ TEST(BakedModelTest, BakeRoundTrip) {
     model.bones[1].name = "root";
     model.bones[1].pivot = {0, 16, 0};
     model.bones[1].rotate = {0, 0, 0};
-    model.bones[0].cube_count = 2;
-    model.bones[1].cube_count = 1;
+    model.bones[0].cubeCount = 2;
+    model.bones[1].cubeCount = 1;
     model.cubes.cubes_legacy = {MakeQuad(0.5f), MakeQuad(0.5f), MakeQuad(1.0f)};
     std::string protobuf;
     struct_pb::to_pb(model, protobuf);
 
-    std::array<bake::Pixel, 4> pixels{
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 0},
+    std::array<gfx::bake::Pixel, 4> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 0},
     };
-    bake::Texture texture(pixels.data(), 2, 2);
-    auto baked_model = bake::BakeModel(StrBuf(protobuf), texture,
+    gfx::bake::Texture texture(pixels.data(), 2, 2);
+    auto baked_model = gfx::bake::BakeModel(StrBuf(protobuf), texture,
                                        {.origin_ver = 29,
                                         .force_culling = false,
                                         .force_translucent = false,
                                         .has_pbr = true});
     ASSERT_TRUE(baked_model.ok()) << baked_model.status();
-    auto baked = bake::SerializeBakedModel(**baked_model);
+    auto baked = gfx::bake::SerializeBakedModel(**baked_model);
 
-    auto restored = bake::ReadBakedModel(baked);
+    auto restored = gfx::bake::ReadBakedModel(baked);
     ASSERT_TRUE(restored.ok()) << restored.status();
     const auto& info = (*restored)->Info();
     const auto& bones = (*restored)->Bones();
@@ -141,7 +141,7 @@ TEST(BakedModelTest, BakeRoundTrip) {
 
     BufferManaged corrupted(baked);
     corrupted.data()[0] ^= 0xff;
-    EXPECT_FALSE(bake::ReadBakedModel(corrupted).ok());
+    EXPECT_FALSE(gfx::bake::ReadBakedModel(corrupted).ok());
 }
 
 TEST(BakedModelTest, LegacyFlags) {
@@ -149,33 +149,33 @@ TEST(BakedModelTest, LegacyFlags) {
 #ifdef YSM_X64
     simd::Mock(simd::Type::SSE41);
 #endif
-    std::array<bake::Pixel, 4> pixels{
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 0},
+    std::array<gfx::bake::Pixel, 4> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 0},
     };
-    bake::Texture texture(pixels.data(), 2, 2);
+    gfx::bake::Texture texture(pixels.data(), 2, 2);
 
     auto opaque_data = SerializeSingleCube(MakeQuad(0.5f));
-    auto alex = bake::BakeModel(
+    auto alex = gfx::bake::BakeModel(
         StrBuf(opaque_data), texture,
         {.origin_ver = 29, .force_culling = false, .force_translucent = true});
     ASSERT_TRUE(alex.ok()) << alex.status();
-    auto alex_baked = bake::SerializeBakedModel(**alex);
-    auto alex_model = bake::ReadBakedModel(alex_baked);
+    auto alex_baked = gfx::bake::SerializeBakedModel(**alex);
+    auto alex_model = gfx::bake::ReadBakedModel(alex_baked);
     ASSERT_TRUE(alex_model.ok()) << alex_model.status();
     const auto& alex_cubes = (*alex_model)->Cubes<simd::Width::B128>();
     EXPECT_TRUE(alex_cubes.cutout_no_culling.empty());
     EXPECT_EQ(alex_cubes.translucent.size(), 1);
 
     auto full_cube_data = SerializeSingleCube(MakeSixFaceCube(1.0f));
-    auto forced = bake::BakeModel(
+    auto forced = gfx::bake::BakeModel(
         StrBuf(full_cube_data), texture,
         {.origin_ver = 29, .force_culling = true, .force_translucent = false});
     ASSERT_TRUE(forced.ok()) << forced.status();
-    auto forced_baked = bake::SerializeBakedModel(**forced);
-    auto forced_model = bake::ReadBakedModel(forced_baked);
+    auto forced_baked = gfx::bake::SerializeBakedModel(**forced);
+    auto forced_model = gfx::bake::ReadBakedModel(forced_baked);
     ASSERT_TRUE(forced_model.ok()) << forced_model.status();
     const auto& forced_cubes = (*forced_model)->Cubes<simd::Width::B128>();
     EXPECT_TRUE(forced_cubes.translucent.empty());
@@ -195,21 +195,21 @@ TEST(BakedModelTest, SingleQuadVertexLayout) {
     cube.pos_indices = {2, 0, 3, 1};
     cube.normal = {0, 0, -1};
     const auto model_data = SerializeSingleCube(std::move(cube));
-    const std::array<bake::Pixel, 4> pixels{
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 4> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 2, 2);
+    gfx::bake::Texture texture(pixels.data(), 2, 2);
 
-    auto baked = bake::BakeModel(StrBuf(model_data), texture,
+    auto baked = gfx::bake::BakeModel(StrBuf(model_data), texture,
                                  {.origin_ver = 29,
                                   .force_culling = false,
                                   .force_translucent = false,
                                   .has_pbr = true});
     ASSERT_TRUE(baked.ok()) << baked.status();
-    auto restored = bake::ReadBakedModel(bake::SerializeBakedModel(**baked));
+    auto restored = gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(**baked));
     ASSERT_TRUE(restored.ok()) << restored.status();
 
     const auto& groups =
@@ -240,7 +240,7 @@ TEST(BakedModelTest, GeneratesStablePreorderForUnsortedForest) {
 #ifdef YSM_X64
     simd::Mock(simd::Type::SSE41);
 #endif
-    bake::pb::GeoModel model;
+    proto::asset::model::data::GeoModel model;
     model.bones.resize(6);
     const auto set_bone = [&](size_t index, std::string name,
                               std::string parent = {}) {
@@ -258,11 +258,11 @@ TEST(BakedModelTest, GeneratesStablePreorderForUnsortedForest) {
 
     std::string protobuf;
     struct_pb::to_pb(model, protobuf);
-    const std::array<bake::Pixel, 1> pixels{
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 1> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 1, 1);
-    auto baked = bake::BakeModel(StrBuf(protobuf), texture, {});
+    gfx::bake::Texture texture(pixels.data(), 1, 1);
+    auto baked = gfx::bake::BakeModel(StrBuf(protobuf), texture, {});
     ASSERT_TRUE(baked.ok()) << baked.status();
 
     const auto& bones = (*baked)->Bones();
@@ -285,7 +285,7 @@ TEST(BakedModelTest, GeneratesStablePreorderForUnsortedForest) {
     EXPECT_EQ(bones.list[5].subtree_end, 6);
     EXPECT_EQ(bones.list[5].depth, 2);
 
-    auto restored = bake::ReadBakedModel(bake::SerializeBakedModel(**baked));
+    auto restored = gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(**baked));
     ASSERT_TRUE(restored.ok()) << restored.status();
     EXPECT_EQ((*restored)->Bones().sorted_bone_indices,
               bones.sorted_bone_indices);
@@ -296,12 +296,12 @@ TEST(BakedModelTest, RejectsInvalidHierarchyMetadata) {
 #ifdef YSM_X64
     simd::Mock(simd::Type::SSE41);
 #endif
-    const std::array<bake::Pixel, 1> pixels{
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 1> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 1, 1);
+    gfx::bake::Texture texture(pixels.data(), 1, 1);
     const auto make_model = [] {
-        bake::pb::GeoModel model;
+        proto::asset::model::data::GeoModel model;
         model.bones.resize(2);
         model.bones[0].name = "root";
         model.bones[0].pivot = {0, 0, 0};
@@ -312,11 +312,12 @@ TEST(BakedModelTest, RejectsInvalidHierarchyMetadata) {
         model.bones[1].rotate = {0, 0, 0};
         return model;
     };
-    const auto expect_invalid = [&](const bake::pb::GeoModel& model) {
+    const auto expect_invalid =
+        [&](const proto::asset::model::data::GeoModel& model) {
         std::string protobuf;
         struct_pb::to_pb(model, protobuf);
         EXPECT_EQ(
-            bake::BakeModel(StrBuf(protobuf), texture, {}).status().code(),
+            gfx::bake::BakeModel(StrBuf(protobuf), texture, {}).status().code(),
             absl::StatusCode::kInvalidArgument);
     };
 
@@ -344,31 +345,31 @@ TEST(BakedModelTest, RejectsInvalidHierarchyMetadata) {
     model.bones[0].name.clear();
     expect_invalid(model);
 
-    bake::pb::GeoModel too_many;
+    proto::asset::model::data::GeoModel too_many;
     too_many.bones.resize(static_cast<size_t>(UINT16_MAX) + 2ULL);
     expect_invalid(too_many);
 
-    bake::BakedModelBones corrupt_bones;
+    gfx::bake::BakedModelBones corrupt_bones;
     corrupt_bones.sorted_bone_indices = {0};
     corrupt_bones.list.resize(1);
     corrupt_bones.list[0].subtree_end = 0;
-    bake::BakedModelCubes<simd::Width::B128> empty_cubes;
-    bake::BakedModel corrupt({}, std::move(corrupt_bones),
+    gfx::bake::BakedModelCubes<simd::Width::B128> empty_cubes;
+    gfx::bake::BakedModel corrupt({}, std::move(corrupt_bones),
                              std::move(empty_cubes));
-    EXPECT_FALSE(bake::ReadBakedModel(bake::SerializeBakedModel(corrupt)).ok());
+    EXPECT_FALSE(gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(corrupt)).ok());
 
-    bake::BakedModelBones invalid_depth_bones;
+    gfx::bake::BakedModelBones invalid_depth_bones;
     invalid_depth_bones.sorted_bone_indices = {0, 1};
     invalid_depth_bones.list.resize(2);
     invalid_depth_bones.list[0].subtree_end = 2;
     invalid_depth_bones.list[1].parent_index = 0;
     invalid_depth_bones.list[1].subtree_end = 2;
     invalid_depth_bones.list[1].depth = 0;
-    bake::BakedModelCubes<simd::Width::B128> invalid_depth_cubes;
-    bake::BakedModel invalid_depth({}, std::move(invalid_depth_bones),
+    gfx::bake::BakedModelCubes<simd::Width::B128> invalid_depth_cubes;
+    gfx::bake::BakedModel invalid_depth({}, std::move(invalid_depth_bones),
                                    std::move(invalid_depth_cubes));
     EXPECT_FALSE(
-        bake::ReadBakedModel(bake::SerializeBakedModel(invalid_depth)).ok());
+        gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(invalid_depth)).ok());
 }
 
 TEST(BakedModelTest, ReportsInvalidCubeLocationAndCondition) {
@@ -377,14 +378,14 @@ TEST(BakedModelTest, ReportsInvalidCubeLocationAndCondition) {
     simd::Mock(simd::Type::SSE41);
 #endif
     auto cube = MakeQuad(1.0f);
-    cube.face_count = 0;
+    cube.faceCount = 0;
     const auto model_data = SerializeSingleCube(std::move(cube));
-    const std::array<bake::Pixel, 1> pixels{
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 1> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 1, 1);
+    gfx::bake::Texture texture(pixels.data(), 1, 1);
 
-    const auto status = bake::BakeModel(StrBuf(model_data), texture, {}).status();
+    const auto status = gfx::bake::BakeModel(StrBuf(model_data), texture, {}).status();
 
     EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
     EXPECT_NE(status.message().find("bone[0] \"root\" cube[0]"),
@@ -396,26 +397,26 @@ TEST(BakedModelTest, ReportsInvalidCubeLocationAndCondition) {
 
 TEST(BakedModelTest, RejectsCorruptSerializedBoneIndices) {
     const auto make_model = [](std::vector<uint16_t> indices) {
-        bake::BakedModelBones bones;
+        gfx::bake::BakedModelBones bones;
         bones.sorted_bone_indices = std::move(indices);
         bones.list.resize(2);
         bones.list[0].subtree_end = 2;
         bones.list[1].parent_index = 0;
         bones.list[1].subtree_end = 2;
         bones.list[1].depth = 1;
-        bake::BakedModelCubes<simd::Width::B128> cubes;
-        return bake::BakedModel({}, std::move(bones), std::move(cubes));
+        gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
+        return gfx::bake::BakedModel({}, std::move(bones), std::move(cubes));
     };
 
     auto wrong_size = make_model({0});
     EXPECT_FALSE(
-        bake::ReadBakedModel(bake::SerializeBakedModel(wrong_size)).ok());
+        gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(wrong_size)).ok());
     auto duplicate = make_model({0, 0});
     EXPECT_FALSE(
-        bake::ReadBakedModel(bake::SerializeBakedModel(duplicate)).ok());
+        gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(duplicate)).ok());
     auto out_of_range = make_model({0, 2});
     EXPECT_FALSE(
-        bake::ReadBakedModel(bake::SerializeBakedModel(out_of_range)).ok());
+        gfx::bake::ReadBakedModel(gfx::bake::SerializeBakedModel(out_of_range)).ok());
 }
 
 TEST(BakedModelTest, PreservesTrustedModelNormal) {
@@ -426,11 +427,11 @@ TEST(BakedModelTest, PreservesTrustedModelNormal) {
     auto cube = MakeQuad(1.0f);
     cube.normal = {0, 2, 0};
     auto model_data = SerializeSingleCube(std::move(cube));
-    const std::array<bake::Pixel, 1> pixels{
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 1> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 1, 1);
-    auto baked = bake::BakeModel(StrBuf(model_data), texture, {});
+    gfx::bake::Texture texture(pixels.data(), 1, 1);
+    auto baked = gfx::bake::BakeModel(StrBuf(model_data), texture, {});
     ASSERT_TRUE(baked.ok()) << baked.status();
     const auto& groups = (*baked)->Cubes<simd::Width::B128>().cutout_no_culling;
     ASSERT_EQ(groups.size(), 1);
@@ -445,17 +446,17 @@ TEST(BakedModelTest, NonPbrCacheOmitsTangentData) {
     simd::Mock(simd::Type::SSE41);
 #endif
     const auto model_data = SerializeSingleCube(MakeQuad(1.0f));
-    const std::array<bake::Pixel, 1> pixels{
-        bake::Pixel{255, 255, 255, 255},
+    const std::array<gfx::bake::Pixel, 1> pixels{
+        gfx::bake::Pixel{255, 255, 255, 255},
     };
-    bake::Texture texture(pixels.data(), 1, 1);
+    gfx::bake::Texture texture(pixels.data(), 1, 1);
 
     auto baked =
-        bake::BakeModel(StrBuf(model_data), texture, {.has_pbr = false});
+        gfx::bake::BakeModel(StrBuf(model_data), texture, {.has_pbr = false});
     ASSERT_TRUE(baked.ok()) << baked.status();
-    auto serialized = bake::SerializeBakedModel(**baked);
+    auto serialized = gfx::bake::SerializeBakedModel(**baked);
 
-    const auto* flat_model = bake::fb::GetBakedModel(serialized.data());
+    const auto* flat_model = gfx::bake::fb::GetBakedModel(serialized.data());
     ASSERT_NE(flat_model, nullptr);
     EXPECT_FALSE(flat_model->has_pbr());
     ASSERT_NE(flat_model->cubes(), nullptr);
@@ -465,7 +466,7 @@ TEST(BakedModelTest, NonPbrCacheOmitsTangentData) {
     ASSERT_NE(flat_group, nullptr);
     EXPECT_EQ(flat_group->tangent(), nullptr);
 
-    auto restored = bake::ReadBakedModel(serialized);
+    auto restored = gfx::bake::ReadBakedModel(serialized);
     ASSERT_TRUE(restored.ok()) << restored.status();
     EXPECT_FALSE((*restored)->Info().has_pbr);
     const auto& group =

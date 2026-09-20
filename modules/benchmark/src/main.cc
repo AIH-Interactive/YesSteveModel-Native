@@ -24,7 +24,7 @@
 
 #include "cglm_avx.h"
 #include "inline.h"
-#include "math/mat4_mul.h"
+#include "gfx/math/mat4_mul.h"
 
 namespace {
 
@@ -59,13 +59,13 @@ YSM_NOINLINE void GlmMat4MulSse2(const mat4 left, const mat4 right,
 
 YSM_NOINLINE YSM_TARGET_AVX2 void Mat4MulAvx2(
     const mat4 left, const mat4 right, mat4 destination) noexcept {
-    ysm::math::Mat4Mul(ysm::simd::Tag<ysm::simd::Type::AVX2>{}, left,
+    ysm::gfx::math::Mat4Mul(ysm::simd::Tag<ysm::simd::Type::AVX2>{}, left,
                                  right, destination);
 }
 
 YSM_NOINLINE YSM_TARGET_AVX512 void Mat4MulAvx512(
     const mat4 left, const mat4 right, mat4 destination) noexcept {
-    ysm::math::Mat4Mul(ysm::simd::Tag<ysm::simd::Type::AVX512>{},
+    ysm::gfx::math::Mat4Mul(ysm::simd::Tag<ysm::simd::Type::AVX512>{},
                                  left, right, destination);
 }
 

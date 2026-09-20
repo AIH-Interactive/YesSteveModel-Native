@@ -8,7 +8,7 @@
 #include <cglm/euler.h>
 #include <gtest/gtest.h>
 
-#include "math/euler.h"
+#include "gfx/math/euler.h"
 
 namespace ysm::test {
 namespace {
@@ -31,13 +31,13 @@ using EulerKernel = void (*)(vec3, mat4) noexcept;
 
 YSM_TARGET_AVX2 YSM_NOINLINE void EulerZYXAvx2(
     vec3 angles, mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::AVX2>{}, angles,
+    gfx::math::EulerZYX(simd::Tag<simd::Type::AVX2>{}, angles,
                    destination);
 }
 
 YSM_TARGET_AVX512 YSM_NOINLINE void EulerZYXAvx512(
     vec3 angles, mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::AVX512>{}, angles,
+    gfx::math::EulerZYX(simd::Tag<simd::Type::AVX512>{}, angles,
                    destination);
 }
 
@@ -45,7 +45,7 @@ YSM_TARGET_AVX512 YSM_NOINLINE void EulerZYXAvx512(
 
 YSM_NOINLINE void EulerZYXNeon(vec3 angles,
                                mat4 destination) noexcept {
-    math::EulerZYX(simd::Tag<simd::Type::NEON>{}, angles,
+    gfx::math::EulerZYX(simd::Tag<simd::Type::NEON>{}, angles,
                    destination);
 }
 
@@ -95,7 +95,7 @@ TEST(EulerTest, ReducesLargeAnglesWithoutModifyingInput) {
     mat4 actual;
     mat4 expected;
 
-    math::EulerZYX(simd::GenericTag{}, angles, actual);
+    gfx::math::EulerZYX(simd::GenericTag{}, angles, actual);
     glm_euler_zyx(angles, expected);
 
     for (int column = 0; column < 4; ++column) {
@@ -121,7 +121,7 @@ TEST(EulerTest, ReducesToRightClosedPrincipalInterval) {
     };
 
     for (const float angle : kSamples) {
-        const float reduced = math::internal::ReduceAngle(angle);
+        const float reduced = gfx::math::internal::ReduceAngle(angle);
         double expected =
             std::remainder(static_cast<double>(angle),
                            2.0 * std::numbers::pi_v<double>);
@@ -133,7 +133,7 @@ TEST(EulerTest, ReducesToRightClosedPrincipalInterval) {
         EXPECT_FLOAT_EQ(reduced, static_cast<float>(expected));
     }
 
-    EXPECT_GT(math::internal::ReduceAngle(-kPi), 0.0f);
+    EXPECT_GT(gfx::math::internal::ReduceAngle(-kPi), 0.0f);
 }
 
 TEST(EulerTest, ReductionMatchesLibmAcrossFloatExponentRange) {
@@ -152,7 +152,7 @@ TEST(EulerTest, ReductionMatchesLibmAcrossFloatExponentRange) {
                 if (expected <= -kPi) {
                     expected += kTwoPi;
                 }
-                EXPECT_FLOAT_EQ(math::internal::ReduceAngle(angle),
+                EXPECT_FLOAT_EQ(gfx::math::internal::ReduceAngle(angle),
                                 static_cast<float>(expected));
             }
         }

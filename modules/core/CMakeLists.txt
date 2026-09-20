@@ -18,40 +18,14 @@ else ()
             ABSL_MAX_VLOG_VERBOSITY=0)
 endif ()
 
-# underlying deps
-target_link_libraries(ysm-core PRIVATE
-        flatbuffers
-
-        minizip
-        lzma
-        zlib-ng-static
-        libzstd_static
-
-        yuv
-        avif
-        dav1d
-        turbojpeg-static
-        spng_static
-        webp
-        opus
-
-        blake3
-        cryptopp
-)
-
 # common deps
 target_link_libraries(ysm-core PUBLIC
         mimalloc-static
 
-        msft_proxy4
         optional_ref
-        pystring
         magic_enum
 
-        cglm
-        jni
         cpu_features
-        yalantinglibs
 
         absl::inlined_vector
         absl::flat_hash_map

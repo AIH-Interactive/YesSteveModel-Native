@@ -4,8 +4,8 @@
 #include <gtest/gtest.h>
 
 #include "cpu.h"
-#include "renderer/buffer/quad_ref.h"
-#include "renderer/cube/transform.h"
+#include "gfx/renderer/buffer/quad_ref.h"
+#include "gfx/renderer/cube/transform.h"
 
 namespace ysm::test {
 namespace {
@@ -28,7 +28,7 @@ bool SupportsAvx2CubeTransform() {
 
 template <bool kTranslucent>
 auto MakeB128CubeGroup() {
-    using Group = bake::CubeGroup<simd::Width::B128, kTranslucent>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B128, kTranslucent>;
     Group group{};
     group.cube_count = 2;
 
@@ -75,7 +75,7 @@ auto MakeB128CubeGroup() {
 
 template <bool kTranslucent>
 auto MakeAvx2CubeGroup() {
-    using Group = bake::CubeGroup<simd::Width::B256, kTranslucent>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, kTranslucent>;
     Group group{};
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 6;
@@ -116,7 +116,7 @@ auto MakeAvx2CubeGroup() {
 
 template <bool kTranslucent>
 auto MakeAvx512CubeGroup() {
-    using Group = bake::CubeGroup<simd::Width::B512, kTranslucent>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B512, kTranslucent>;
     Group group{};
     group.cube_count = 2;
 
@@ -161,8 +161,8 @@ auto MakeAvx512CubeGroup() {
     return group;
 }
 
-renderer::RenderBoneState MakeSimdBoneState(bool uniform_scale) {
-    renderer::RenderBoneState state{};
+gfx::renderer::RenderBoneState MakeSimdBoneState(bool uniform_scale) {
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = 1.5f;
     state.pose[0][1] = 0.25f;
@@ -233,8 +233,8 @@ void ExpectSingleQuadFastPath(SimdTag tag) {
     }
 
     auto state = MakeSimdBoneState(false);
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     for (auto& axis : expected.pos) {
         axis.fill(kPositionSentinel);
     }
@@ -250,9 +250,9 @@ void ExpectSingleQuadFastPath(SimdTag tag) {
     expected.back_face.fill(true);
     actual.back_face.fill(true);
 
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         tag, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 4; ++vertex) {
@@ -285,7 +285,7 @@ void ExpectSingleQuadFastPath(SimdTag tag) {
 
 template <typename SimdTag>
 void ExpectSingleCubeFastPath(SimdTag tag) {
-    using Group = bake::CubeGroup<simd::Width::B128, true>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B128, true>;
     constexpr float kPositionSentinel = 12345.0f;
     constexpr uint32_t kAttributeSentinel = 0xdeadbeef;
     constexpr float kDepthSentinel = 54321.0f;
@@ -294,8 +294,8 @@ void ExpectSingleCubeFastPath(SimdTag tag) {
     group.cube_count = 1;
     const auto state = MakeSimdBoneState(false);
 
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     for (auto& axis : actual.pos) {
         axis.fill(kPositionSentinel);
     }
@@ -304,9 +304,9 @@ void ExpectSingleCubeFastPath(SimdTag tag) {
     actual.face_depth.fill(kDepthSentinel);
     actual.back_face.fill(true);
 
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         tag, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 8; ++vertex) {
@@ -340,16 +340,16 @@ void ExpectSingleCubeFastPath(SimdTag tag) {
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 void ExpectSse41MatchesGeneric(const Group& group,
-                               const renderer::RenderBoneState& state) {
+                               const gfx::renderer::RenderBoneState& state) {
     constexpr uint32_t kTangentSentinel = 0xdeadbeef;
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     expected.tangent.fill(kTangentSentinel);
     actual.tangent.fill(kTangentSentinel);
 
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::SSE41>{}, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 16; ++vertex) {
@@ -394,16 +394,16 @@ void ExpectSse41MatchesGeneric(const Group& group,
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 void ExpectAvx2MatchesGeneric(const Group& group,
-                              const renderer::RenderBoneState& state) {
+                              const gfx::renderer::RenderBoneState& state) {
     constexpr uint32_t kTangentSentinel = 0xdeadbeef;
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     expected.tangent.fill(kTangentSentinel);
     actual.tangent.fill(kTangentSentinel);
 
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::AVX2>{}, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 8; ++vertex) {
@@ -443,16 +443,16 @@ void ExpectAvx2MatchesGeneric(const Group& group,
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 void ExpectAvx512MatchesGeneric(const Group& group,
-                                const renderer::RenderBoneState& state) {
+                                const gfx::renderer::RenderBoneState& state) {
     constexpr uint32_t kTangentSentinel = 0xdeadbeef;
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     expected.tangent.fill(kTangentSentinel);
     actual.tangent.fill(kTangentSentinel);
 
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::AVX512>{}, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 16; ++vertex) {
@@ -499,16 +499,16 @@ void ExpectAvx512MatchesGeneric(const Group& group,
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 void ExpectNeonMatchesGeneric(const Group& group,
-                              const renderer::RenderBoneState& state) {
+                              const gfx::renderer::RenderBoneState& state) {
     constexpr uint32_t kTangentSentinel = 0xdeadbeef;
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
     expected.tangent.fill(kTangentSentinel);
     actual.tangent.fill(kTangentSentinel);
 
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::NEON>{}, group, state, actual);
 
     for (uint32_t vertex = 0; vertex < 16; ++vertex) {
@@ -552,7 +552,7 @@ void ExpectNeonMatchesGeneric(const Group& group,
 #endif
 
 TEST(CubeTransformTest, GenericCubeTransform) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 4;
@@ -570,7 +570,7 @@ TEST(CubeTransformTest, GenericCubeTransform) {
     group.winding_sign[2] = 1.0f;
     group.winding_sign[3] = -1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = 2.0f;
     state.pose[1][1] = 3.0f;
@@ -585,8 +585,8 @@ TEST(CubeTransformTest, GenericCubeTransform) {
     state.uniform_scale = false;
     state.facing_coeff[2] = 1.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, false, false, false>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, false, false, false>(simd::GenericTag{},
                                                           group, state, output);
 
     EXPECT_FLOAT_EQ(output.pos[0][3], 11.0f);
@@ -602,7 +602,7 @@ TEST(CubeTransformTest, GenericCubeTransform) {
 }
 
 TEST(CubeTransformTest, GenericIrisTransform) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 4;
@@ -622,7 +622,7 @@ TEST(CubeTransformTest, GenericIrisTransform) {
         group.winding_sign[face] = 1.0f;
     }
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = -2.0f;
     state.pose[1][1] = 3.0f;
@@ -635,8 +635,8 @@ TEST(CubeTransformTest, GenericIrisTransform) {
     state.tangent_orientation = -1.0f;
     state.uniform_scale = false;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
                                                         group, state, output);
 
     EXPECT_EQ(PackedByte(output.normal[0], 2), 0x7f);
@@ -651,7 +651,7 @@ TEST(CubeTransformTest, GenericIrisTransform) {
 }
 
 TEST(CubeTransformTest, NonPbrIrisStillNormalizesNormalButSkipsTangent) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 1;
@@ -661,7 +661,7 @@ TEST(CubeTransformTest, NonPbrIrisStillNormalizesNormalButSkipsTangent) {
     group.tangent[3][0] = -1.0f;
     group.winding_sign[0] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.normal[0][0] = 0.5f;
@@ -669,9 +669,9 @@ TEST(CubeTransformTest, NonPbrIrisStillNormalizesNormalButSkipsTangent) {
     state.uniform_scale = false;
     state.facing_coeff[0] = 1.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::CubeOutput<Group> output{};
     output.tangent[0] = 0xdeadbeef;
-    renderer::cube::Transform<false, true, false, false>(simd::GenericTag{},
+    gfx::renderer::cube::Transform<false, true, false, false>(simd::GenericTag{},
                                                          group, state, output);
 
     EXPECT_EQ(PackedByte(output.normal[0], 0), 0x72);
@@ -680,7 +680,7 @@ TEST(CubeTransformTest, NonPbrIrisStillNormalizesNormalButSkipsTangent) {
 }
 
 TEST(CubeTransformTest, PositionOnlyStillTransformsNormal) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 1;
@@ -688,7 +688,7 @@ TEST(CubeTransformTest, PositionOnlyStillTransformsNormal) {
     group.normal[1][0] = 1.0f;
     group.winding_sign[0] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.normal[0][0] = 0.5f;
@@ -696,8 +696,8 @@ TEST(CubeTransformTest, PositionOnlyStillTransformsNormal) {
     state.uniform_scale = false;
     state.facing_coeff[0] = 1.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, true, false, true>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, true, false, true>(simd::GenericTag{},
                                                         group, state, output);
 
     EXPECT_EQ(PackedByte(output.normal[0], 0), 0x72);
@@ -705,7 +705,7 @@ TEST(CubeTransformTest, PositionOnlyStillTransformsNormal) {
 }
 
 TEST(CubeTransformTest, UsesPreNormalizedDirectionMatrixForIrisTangent) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 1;
@@ -714,7 +714,7 @@ TEST(CubeTransformTest, UsesPreNormalizedDirectionMatrixForIrisTangent) {
     group.tangent[3][0] = 1.0f;
     group.winding_sign[0] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.tangent_orientation = 1.0f;
     state.pose[0][0] = 0.0f;
@@ -728,8 +728,8 @@ TEST(CubeTransformTest, UsesPreNormalizedDirectionMatrixForIrisTangent) {
     state.normal[1][1] = 0.0f;
     state.facing_coeff[0] = 1.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
                                                         group, state, output);
 
     EXPECT_EQ(PackedByte(output.normal[0], 1), 0x7f);
@@ -739,7 +739,7 @@ TEST(CubeTransformTest, UsesPreNormalizedDirectionMatrixForIrisTangent) {
 }
 
 TEST(CubeTransformTest, NonUniformIrisTangentUsesPoseLinearPart) {
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 1;
@@ -750,7 +750,7 @@ TEST(CubeTransformTest, NonUniformIrisTangentUsesPoseLinearPart) {
     group.tangent[3][0] = 1.0f;
     group.winding_sign[0] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = 2.0f;
     state.pose[1][1] = 3.0f;
@@ -762,8 +762,8 @@ TEST(CubeTransformTest, NonUniformIrisTangentUsesPoseLinearPart) {
     state.uniform_scale = false;
     state.facing_coeff[2] = 1.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, true, true, false>(simd::GenericTag{},
                                                         group, state, output);
 
     EXPECT_EQ(PackedByte(output.tangent[0], 0), 0x46);
@@ -772,7 +772,7 @@ TEST(CubeTransformTest, NonUniformIrisTangentUsesPoseLinearPart) {
 }
 
 TEST(CubeTransformTest, TranslucentDepth) {
-    using Group = bake::CubeGroup<simd::Width::B256, true>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, true>;
     Group group;
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 1;
@@ -782,7 +782,7 @@ TEST(CubeTransformTest, TranslucentDepth) {
     group.center[1][0] = 2.0f;
     group.center[2][0] = 3.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.facing_coeff[2] = 1.0f;
@@ -790,24 +790,24 @@ TEST(CubeTransformTest, TranslucentDepth) {
     state.depth_z[3] = 1.0f;
     state.depth_w[3] = 2.0f;
 
-    renderer::cube::CubeOutput<Group> output{};
-    renderer::cube::Transform<false, false, false, false>(simd::GenericTag{},
+    gfx::renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::Transform<false, false, false, false>(simd::GenericTag{},
                                                           group, state, output);
     EXPECT_NEAR(output.face_depth[0], 3.5f, 0.0001f);
 
-    using renderer::buffer::NdcDepthSortKey;
+    using gfx::renderer::buffer::NdcDepthSortKey;
     EXPECT_LT(NdcDepthSortKey(1.0f), NdcDepthSortKey(0.0f));
     EXPECT_EQ(NdcDepthSortKey(0.0f), NdcDepthSortKey(-0.0f));
     EXPECT_LT(NdcDepthSortKey(-0.0f), NdcDepthSortKey(-1.0f));
     EXPECT_EQ(NdcDepthSortKey(std::numeric_limits<float>::infinity()),
-              renderer::buffer::kInvalidDepthSortKey);
+              gfx::renderer::buffer::kInvalidDepthSortKey);
     EXPECT_EQ(NdcDepthSortKey(-std::numeric_limits<float>::infinity()),
-              renderer::buffer::kInvalidDepthSortKey);
+              gfx::renderer::buffer::kInvalidDepthSortKey);
     EXPECT_EQ(NdcDepthSortKey(std::numeric_limits<float>::quiet_NaN()),
-              renderer::buffer::kInvalidDepthSortKey);
+              gfx::renderer::buffer::kInvalidDepthSortKey);
 
-    renderer::cube::CubeOutput<Group> pos_only_output{};
-    renderer::cube::Transform<false, false, false, true>(
+    gfx::renderer::cube::CubeOutput<Group> pos_only_output{};
+    gfx::renderer::cube::Transform<false, false, false, true>(
         simd::GenericTag{}, group, state, pos_only_output);
     EXPECT_NEAR(pos_only_output.face_depth[0], 3.5f, 0.0001f);
 }
@@ -843,7 +843,7 @@ TEST(CubeTransformTest, Sse41MatchesTranslucentPositionOnly) {
 
 TEST(CubeTransformTest, Sse41SingleQuadOnlyTransformsLiveData) {
     ExpectSingleQuadFastPath<
-        bake::CubeGroup<simd::Width::B128, true>>(
+        gfx::bake::CubeGroup<simd::Width::B128, true>>(
         simd::Tag<simd::Type::SSE41>{});
 }
 
@@ -852,7 +852,7 @@ TEST(CubeTransformTest, Sse41SingleCubeSkipsUnusedLanes) {
 }
 
 TEST(CubeTransformTest, Sse41NormalizesInvalidDirectionsToZero) {
-    using Group = bake::CubeGroup<simd::Width::B128, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B128, false>;
     Group group{};
     group.cube_count = 2;
     group.cube_attr[0].quad_count = 3;
@@ -873,18 +873,18 @@ TEST(CubeTransformTest, Sse41NormalizesInvalidDirectionsToZero) {
     group.tangent[3][2] = -1.0f;
     group.tangent[3][6] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.facing_coeff[3] = 1.0f;
     state.tangent_orientation = -1.0f;
     state.uniform_scale = false;
 
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::Tag<simd::Type::SSE41>{}, group, state, actual);
 
     for (const uint32_t attr : {0U, 1U, 2U, 6U}) {
@@ -947,7 +947,7 @@ TEST(CubeTransformTest, Avx2SingleQuadOnlyTransformsLiveData) {
     }
 
     ExpectSingleQuadFastPath<
-        bake::CubeGroup<simd::Width::B256, true>>(
+        gfx::bake::CubeGroup<simd::Width::B256, true>>(
         simd::Tag<simd::Type::AVX2>{});
 }
 
@@ -956,7 +956,7 @@ TEST(CubeTransformTest, Avx2NormalizesInvalidDirectionsToZero) {
         GTEST_SKIP() << "AVX2/FMA is unavailable";
     }
 
-    using Group = bake::CubeGroup<simd::Width::B256, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B256, false>;
     Group group{};
     group.cube_count = 1;
     group.cube_attr[0].quad_count = 3;
@@ -972,18 +972,18 @@ TEST(CubeTransformTest, Avx2NormalizesInvalidDirectionsToZero) {
     group.tangent[3][1] = 1.0f;
     group.tangent[3][2] = -1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.facing_coeff[3] = 1.0f;
     state.tangent_orientation = -1.0f;
     state.uniform_scale = false;
 
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::Tag<simd::Type::AVX2>{}, group, state, actual);
 
     for (uint32_t quad = 0; quad < 3; ++quad) {
@@ -1046,7 +1046,7 @@ TEST(CubeTransformTest, Avx512SingleQuadOnlyTransformsLiveData) {
     }
 
     ExpectSingleQuadFastPath<
-        bake::CubeGroup<simd::Width::B512, true>>(
+        gfx::bake::CubeGroup<simd::Width::B512, true>>(
         simd::Tag<simd::Type::AVX512>{});
 }
 #endif
@@ -1082,7 +1082,7 @@ TEST(CubeTransformTest, NeonMatchesTranslucentPositionOnly) {
 
 TEST(CubeTransformTest, NeonSingleQuadOnlyTransformsLiveData) {
     ExpectSingleQuadFastPath<
-        bake::CubeGroup<simd::Width::B128, true>>(
+        gfx::bake::CubeGroup<simd::Width::B128, true>>(
         simd::Tag<simd::Type::NEON>{});
 }
 
@@ -1091,7 +1091,7 @@ TEST(CubeTransformTest, NeonSingleCubeSkipsUnusedLanes) {
 }
 
 TEST(CubeTransformTest, NeonNormalizesInvalidDirectionsToZero) {
-    using Group = bake::CubeGroup<simd::Width::B128, false>;
+    using Group = gfx::bake::CubeGroup<simd::Width::B128, false>;
     Group group{};
     group.cube_count = 2;
     group.cube_attr[0].quad_count = 3;
@@ -1112,18 +1112,18 @@ TEST(CubeTransformTest, NeonNormalizesInvalidDirectionsToZero) {
     group.tangent[3][2] = -1.0f;
     group.tangent[3][6] = 1.0f;
 
-    renderer::RenderBoneState state{};
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     glm_mat3_identity(state.normal);
     state.facing_coeff[3] = 1.0f;
     state.tangent_orientation = -1.0f;
     state.uniform_scale = false;
 
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::GenericTag{}, group, state, expected);
-    renderer::cube::Transform<false, true, true, false>(
+    gfx::renderer::cube::Transform<false, true, true, false>(
         simd::Tag<simd::Type::NEON>{}, group, state, actual);
 
     for (const uint32_t attr : {0U, 1U, 2U, 6U}) {

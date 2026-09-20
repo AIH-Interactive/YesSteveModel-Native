@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include "cpu_topology.h"
-#include "renderer/parallel_executor.h"
+#include "gfx/renderer/parallel_executor.h"
 
-namespace ysm::renderer::internal {
+namespace ysm::gfx::renderer::internal {
 namespace {
 TEST(ParallelExecutorPolicyTest, CreatesValidPlatformConfig) {
     EXPECT_GE(ParallelExecutor::Get().GetThreadCount(), 3);
@@ -41,4 +41,4 @@ TEST(ParallelExecutorTest, ClampsZeroSizeToCallerWorker) {
     EXPECT_EQ(executor.GetThreadCount(), 1);
 }
 }  // namespace
-}  // namespace ysm::renderer::internal
+}  // namespace ysm::gfx::renderer::internal

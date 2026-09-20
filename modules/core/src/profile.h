@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <utility>
 
 #ifndef YSM_ENABLE_TRACY
 #define YSM_ENABLE_TRACY 0
@@ -15,19 +17,29 @@ namespace ysm::profile {
 class SourceLocation final {
    public:
 #if YSM_ENABLE_TRACY
-    constexpr SourceLocation(const char* name, const char* function,
-                             const char* file, uint32_t line,
-                             uint32_t color = 0) noexcept
-        : data_{name, function, file, line, color} {}
+    SourceLocation(std::string name, std::string function, std::string file,
+                   uint32_t line, uint32_t color = 0) noexcept
+        : name_(std::move(name)),
+          function_(std::move(function)),
+          file_(std::move(file)),
+          data_{name_.c_str(), function_.c_str(), file_.c_str(), line, color} {}
 #else
-    constexpr SourceLocation(const char*, const char*, const char*, uint32_t,
-                             uint32_t = 0) noexcept {}
+    SourceLocation(std::string, std::string, std::string, uint32_t,
+                   uint32_t = 0) noexcept {}
 #endif
+
+    SourceLocation(const SourceLocation&) = delete;
+    SourceLocation& operator=(const SourceLocation&) = delete;
+    SourceLocation(SourceLocation&&) = delete;
+    SourceLocation& operator=(SourceLocation&&) = delete;
 
    private:
     friend uint64_t BeginZone(const SourceLocation&) noexcept;
 
 #if YSM_ENABLE_TRACY
+    std::string name_;
+    std::string function_;
+    std::string file_;
     ___tracy_source_location_data data_;
 #endif
 };

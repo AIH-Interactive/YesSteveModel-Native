@@ -14,7 +14,7 @@
 
 #include "cpu.h"
 #include "inline.h"
-#include "renderer/cube/transform.h"
+#include "gfx/renderer/cube/transform.h"
 
 #ifdef YSM_X64
 
@@ -22,29 +22,29 @@ namespace ysm::benchmarking {
 namespace {
 
 template <bool kTranslucent>
-using CubeGroup = bake::CubeGroup<simd::Width::B512, kTranslucent>;
+using CubeGroup = gfx::bake::CubeGroup<simd::Width::B512, kTranslucent>;
 
 template <bool kTranslucent>
-using Sse41CubeGroup = bake::CubeGroup<simd::Width::B128, kTranslucent>;
+using Sse41CubeGroup = gfx::bake::CubeGroup<simd::Width::B128, kTranslucent>;
 
 template <bool kTranslucent>
-using Avx2CubeGroup = bake::CubeGroup<simd::Width::B256, kTranslucent>;
+using Avx2CubeGroup = gfx::bake::CubeGroup<simd::Width::B256, kTranslucent>;
 
 template <typename Group>
 using TransformFunction = void (*)(const Group&,
-                                   const renderer::RenderBoneState&,
-                                   renderer::cube::CubeOutput<Group>&) noexcept;
+                                   const gfx::renderer::RenderBoneState&,
+                                   gfx::renderer::cube::CubeOutput<Group>&) noexcept;
 
 template <typename Group>
 struct TransformFixture {
     Group group;
-    renderer::RenderBoneState state;
+    gfx::renderer::RenderBoneState state;
 };
 
 template <typename Group>
 struct TransformPairFixture {
     std::array<Group, 2> groups;
-    renderer::RenderBoneState state;
+    gfx::renderer::RenderBoneState state;
 };
 
 bool SupportsAvx2() noexcept {
@@ -192,8 +192,8 @@ TransformPairFixture<Avx2CubeGroup<kTranslucent>> MakeAvx2Fixture(
     return result;
 }
 
-renderer::RenderBoneState MakeBoneState(bool uniform_scale) {
-    renderer::RenderBoneState state{};
+gfx::renderer::RenderBoneState MakeBoneState(bool uniform_scale) {
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = 1.5f;
     state.pose[0][1] = 0.25f;
@@ -239,36 +239,36 @@ renderer::RenderBoneState MakeBoneState(bool uniform_scale) {
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_NOINLINE void TransformScalar(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, output);
 }
 
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_NOINLINE void TransformSse41(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::SSE41>{}, group, state, output);
 }
 
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_TARGET_AVX2 YSM_NOINLINE void TransformAvx2(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::AVX2>{}, group, state, output);
 }
 
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_TARGET_AVX512 YSM_NOINLINE void TransformAvx512(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::AVX512>{}, group, state, output);
 }
 
@@ -276,7 +276,7 @@ template <typename Group>
 void RunTransformBenchmark(benchmark::State& state,
                            TransformFunction<Group> transform,
                            const TransformFixture<Group>* fixture) {
-    renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::CubeOutput<Group> output{};
     for (auto _ : state) {
         transform(fixture->group, fixture->state, output);
         benchmark::DoNotOptimize(output);
@@ -288,7 +288,7 @@ template <typename Group>
 void RunTransformPairBenchmark(benchmark::State& state,
                                TransformFunction<Group> transform,
                                const TransformPairFixture<Group>* fixture) {
-    std::array<renderer::cube::CubeOutput<Group>, 2> output{};
+    std::array<gfx::renderer::cube::CubeOutput<Group>, 2> output{};
     for (auto _ : state) {
         transform(fixture->groups[0], fixture->state, output[0]);
         transform(fixture->groups[1], fixture->state, output[1]);
@@ -348,9 +348,9 @@ template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 bool ValidateAvx512Scenario(std::string_view name,
                             const TransformFixture<Group>& fixture) {
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, fixture.group, fixture.state, expected);
     TransformAvx512<kCulling, kIris, kHasPbr, kPosOnly>(fixture.group,
                                                         fixture.state, actual);
@@ -413,9 +413,9 @@ template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
 bool ValidateSse41Scenario(
     std::string_view name, const TransformFixture<Group>& fixture,
     const TransformFixture<Sse41Group>& sse41_fixture) {
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Sse41Group> actual{};
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Sse41Group> actual{};
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, fixture.group, fixture.state, expected);
     TransformSse41<kCulling, kIris, kHasPbr, kPosOnly>(
         sse41_fixture.group, sse41_fixture.state, actual);
@@ -483,9 +483,9 @@ template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
 bool ValidateAvx2Scenario(
     std::string_view name, const TransformFixture<Group>& fixture,
     const TransformPairFixture<Avx2Group>& avx2_fixture) {
-    renderer::cube::CubeOutput<Group> expected{};
-    std::array<renderer::cube::CubeOutput<Avx2Group>, 2> actual{};
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    std::array<gfx::renderer::cube::CubeOutput<Avx2Group>, 2> actual{};
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, fixture.group, fixture.state, expected);
     for (uint32_t cube = 0; cube < 2; ++cube) {
         TransformAvx2<kCulling, kIris, kHasPbr, kPosOnly>(
@@ -634,17 +634,17 @@ namespace ysm::benchmarking {
 namespace {
 
 template <bool kTranslucent>
-using CubeGroup = bake::CubeGroup<simd::Width::B128, kTranslucent>;
+using CubeGroup = gfx::bake::CubeGroup<simd::Width::B128, kTranslucent>;
 
 template <typename Group>
 using TransformFunction = void (*)(const Group&,
-                                   const renderer::RenderBoneState&,
-                                   renderer::cube::CubeOutput<Group>&) noexcept;
+                                   const gfx::renderer::RenderBoneState&,
+                                   gfx::renderer::cube::CubeOutput<Group>&) noexcept;
 
 template <typename Group>
 struct TransformFixture {
     Group group;
-    renderer::RenderBoneState state;
+    gfx::renderer::RenderBoneState state;
 };
 
 template <bool kTranslucent>
@@ -700,8 +700,8 @@ CubeGroup<kTranslucent> MakeNeonCubeGroup() {
     return group;
 }
 
-renderer::RenderBoneState MakeNeonBoneState(bool uniform_scale) {
-    renderer::RenderBoneState state{};
+gfx::renderer::RenderBoneState MakeNeonBoneState(bool uniform_scale) {
+    gfx::renderer::RenderBoneState state{};
     glm_mat4_identity(state.pose);
     state.pose[0][0] = 1.5f;
     state.pose[0][1] = 0.25f;
@@ -747,18 +747,18 @@ renderer::RenderBoneState MakeNeonBoneState(bool uniform_scale) {
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_NOINLINE void TransformScalar(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, group, state, output);
 }
 
 template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 YSM_NOINLINE void TransformNeon(
-    const Group& group, const renderer::RenderBoneState& state,
-    renderer::cube::CubeOutput<Group>& output) noexcept {
-    renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
+    const Group& group, const gfx::renderer::RenderBoneState& state,
+    gfx::renderer::cube::CubeOutput<Group>& output) noexcept {
+    gfx::renderer::cube::Transform<kCulling, kIris, kHasPbr, kPosOnly>(
         simd::Tag<simd::Type::NEON>{}, group, state, output);
 }
 
@@ -766,7 +766,7 @@ template <typename Group>
 void RunTransformBenchmark(benchmark::State& state,
                            TransformFunction<Group> transform,
                            const TransformFixture<Group>* fixture) {
-    renderer::cube::CubeOutput<Group> output{};
+    gfx::renderer::cube::CubeOutput<Group> output{};
     for (auto _ : state) {
         transform(fixture->group, fixture->state, output);
         benchmark::DoNotOptimize(output);
@@ -801,9 +801,9 @@ template <bool kCulling, bool kIris, bool kHasPbr, bool kPosOnly,
           typename Group>
 bool ValidateNeonScenario(std::string_view name,
                           const TransformFixture<Group>& fixture) {
-    renderer::cube::CubeOutput<Group> expected{};
-    renderer::cube::CubeOutput<Group> actual{};
-    renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
+    gfx::renderer::cube::CubeOutput<Group> expected{};
+    gfx::renderer::cube::CubeOutput<Group> actual{};
+    gfx::renderer::cube::Transform<false, kIris, kHasPbr, kPosOnly>(
         simd::GenericTag{}, fixture.group, fixture.state, expected);
     TransformNeon<kCulling, kIris, kHasPbr, kPosOnly>(fixture.group,
                                                       fixture.state, actual);

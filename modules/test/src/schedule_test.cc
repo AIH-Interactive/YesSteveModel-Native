@@ -9,10 +9,10 @@
 
 #include <gtest/gtest.h>
 
-#include "bake/baked_model.h"
-#include "bake/baked_serializer.h"
+#include "gfx/bake/baked_model.h"
+#include "gfx/bake/baked_serializer.h"
 #include "cpu.h"
-#include "renderer/schedule.h"
+#include "gfx/renderer/schedule.h"
 
 namespace ysm::test {
 namespace {
@@ -35,9 +35,9 @@ Group MakeGroup(
 }
 
 template <typename Group>
-void SetBoneInfo(bake::BakedModelBones::BonePartitionInfo& bone_info,
+void SetBoneInfo(gfx::bake::BakedModelBones::BonePartitionInfo& bone_info,
                  std::span<const uint32_t> indices,
-                 std::span<bake::BakedModelBones::CubeGroupInfo> group_info,
+                 std::span<gfx::bake::BakedModelBones::CubeGroupInfo> group_info,
                  const std::vector<Group>& groups) {
     bone_info.cube_indices = indices;
     bone_info.cube_group_info = group_info;
@@ -60,12 +60,12 @@ void SetBoneInfo(bake::BakedModelBones::BonePartitionInfo& bone_info,
     bone_info.culling_vertex_count = quad_count_after_culling * 4U;
 }
 
-std::shared_ptr<bake::BakedModel> MakeScheduleModel(
+std::shared_ptr<gfx::bake::BakedModel> MakeScheduleModel(
     bool corrupt_group_info = false) {
-    using CutoutGroup = bake::CubeGroup<simd::Width::B128, false>;
-    using TranslucentGroup = bake::CubeGroup<simd::Width::B128, true>;
+    using CutoutGroup = gfx::bake::CubeGroup<simd::Width::B128, false>;
+    using TranslucentGroup = gfx::bake::CubeGroup<simd::Width::B128, true>;
 
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout = {
         MakeGroup<CutoutGroup>(0, {{6, 3}}),
         MakeGroup<CutoutGroup>(0, {{2, 1}, {1, 1}}),
@@ -84,7 +84,7 @@ std::shared_ptr<bake::BakedModel> MakeScheduleModel(
         MakeGroup<TranslucentGroup>(2, {{4, 2}}),
     };
 
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.sorted_bone_indices = {0, 1, 2};
     bones.list.resize(3);
     for (size_t i = 0; i < bones.list.size(); ++i) {
@@ -124,16 +124,16 @@ std::shared_ptr<bake::BakedModel> MakeScheduleModel(
         ++bones.cube_group_info_cache[0].quad_count;
     }
 
-    return std::make_shared<bake::BakedModel>(
-        bake::BakedModelInfo{.has_pbr = true}, std::move(bones),
+    return std::make_shared<gfx::bake::BakedModel>(
+        gfx::bake::BakedModelInfo{.has_pbr = true}, std::move(bones),
                                                std::move(cubes));
 }
 
-std::shared_ptr<bake::BakedModel> MakeDenseScheduleModel() {
-    using CutoutGroup = bake::CubeGroup<simd::Width::B128, false>;
+std::shared_ptr<gfx::bake::BakedModel> MakeDenseScheduleModel() {
+    using CutoutGroup = gfx::bake::CubeGroup<simd::Width::B128, false>;
     constexpr size_t kGroupCount = 15;
 
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout.reserve(kGroupCount);
     for (size_t i = 0; i < kGroupCount; ++i) {
         const auto full = static_cast<uint8_t>(i % 6 + 1);
@@ -141,7 +141,7 @@ std::shared_ptr<bake::BakedModel> MakeDenseScheduleModel() {
         cubes.cutout.push_back(MakeGroup<CutoutGroup>(0, {{full, culling}}));
     }
 
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.sorted_bone_indices = {0};
     bones.list.resize(1);
     bones.list[0].solid = true;
@@ -154,13 +154,13 @@ std::shared_ptr<bake::BakedModel> MakeDenseScheduleModel() {
     SetBoneInfo(bones.list[0].cutout, bones.cube_indices_cache,
                 bones.cube_group_info_cache, cubes.cutout);
 
-    return std::make_shared<bake::BakedModel>(bake::BakedModelInfo{},
+    return std::make_shared<gfx::bake::BakedModel>(gfx::bake::BakedModelInfo{},
                                               std::move(bones),
                                               std::move(cubes));
 }
 
 template <typename PartitionSelector>
-std::vector<uint32_t> GatherIndices(const renderer::RenderSchedule& schedule,
+std::vector<uint32_t> GatherIndices(const gfx::renderer::RenderSchedule& schedule,
                                     PartitionSelector selector) {
     std::vector<uint32_t> result;
     for (const auto& task : schedule.tasks) {
@@ -175,7 +175,7 @@ std::vector<uint32_t> GatherIndices(const renderer::RenderSchedule& schedule,
 
 TEST(ScheduleTest, BuildSchedule) {
     auto model = MakeScheduleModel();
-    renderer::RenderSchedule schedule;
+    gfx::renderer::RenderSchedule schedule;
     constexpr size_t kWorkerCount = 4;
     const std::vector<uint16_t> selected_bones{2, 0};
     const auto status =
@@ -184,7 +184,7 @@ TEST(ScheduleTest, BuildSchedule) {
     EXPECT_EQ(schedule.vertex_count, 64);
     EXPECT_EQ(schedule.translucent_vertex_count, 28);
     EXPECT_EQ(schedule.translucent_vertex_offset, 36);
-    EXPECT_EQ(schedule.mode, renderer::RenderSchedulingMode::kInline);
+    EXPECT_EQ(schedule.mode, gfx::renderer::RenderSchedulingMode::kInline);
     EXPECT_EQ(schedule.tasks.size(), kWorkerCount);
 
     EXPECT_EQ(GatherIndices(
@@ -251,17 +251,17 @@ TEST(ScheduleTest, BuildSchedule) {
         schedule.Update(model->Bones(), out_of_range, kWorkerCount).code(),
         absl::StatusCode::kInvalidArgument);
     const auto corrupt_cache =
-        bake::SerializeBakedModel(*MakeScheduleModel(true));
-    EXPECT_FALSE(bake::ReadBakedModel(corrupt_cache).ok());
+        gfx::bake::SerializeBakedModel(*MakeScheduleModel(true));
+    EXPECT_FALSE(gfx::bake::ReadBakedModel(corrupt_cache).ok());
 
     auto dense_model = MakeDenseScheduleModel();
-    renderer::RenderSchedule dense_schedule;
+    gfx::renderer::RenderSchedule dense_schedule;
     const std::array<uint16_t, 1> dense_bones{0};
     ASSERT_TRUE(
         dense_schedule.Update(dense_model->Bones(), dense_bones, kWorkerCount)
             .ok());
     EXPECT_EQ(dense_schedule.mode,
-              renderer::RenderSchedulingMode::kSerialPrewake);
+              gfx::renderer::RenderSchedulingMode::kSerialPrewake);
     EXPECT_EQ(dense_schedule.tasks.size(), kWorkerCount);
     const auto& prefix = dense_model->Bones().list[0].cutout.cube_group_info;
     uint32_t vertex_offset = 0;
@@ -292,11 +292,11 @@ TEST(ScheduleTest, BuildSchedule) {
 
 TEST(ScheduleTest, BuildsAllPartitionsAcrossWorkers) {
     auto model = MakeScheduleModel();
-    renderer::RenderSchedule schedule;
+    gfx::renderer::RenderSchedule schedule;
     const std::array<uint16_t, 3> selected_bones{0, 1, 2};
 
     ASSERT_TRUE(schedule.Update(model->Bones(), selected_bones, 2).ok());
-    ASSERT_EQ(schedule.mode, renderer::RenderSchedulingMode::kSerialLateWake);
+    ASSERT_EQ(schedule.mode, gfx::renderer::RenderSchedulingMode::kSerialLateWake);
     ASSERT_EQ(schedule.tasks.size(), 2);
     EXPECT_EQ(schedule.vertex_count, 80);
     EXPECT_EQ(schedule.translucent_vertex_count, 40);
@@ -347,65 +347,65 @@ TEST(ScheduleTest, BuildsAllPartitionsAcrossWorkers) {
 }
 
 TEST(ScheduleTest, SelectsExecutionModeAtMeasuredBoundaries) {
-    using Mode = renderer::RenderSchedulingMode;
+    using Mode = gfx::renderer::RenderSchedulingMode;
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(1, 1000, 1000),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(1, 1000, 1000),
               Mode::kInline);
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(2, 4, 6),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(2, 4, 6),
               Mode::kInline);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(2, 4, 7),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(2, 4, 7),
               Mode::kSerialLateWake);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(2, 64, 64),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(2, 64, 64),
               Mode::kWorkerReadySpin);
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(3, 6, 6),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(3, 6, 6),
               Mode::kInline);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(3, 6, 7),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(3, 6, 7),
               Mode::kSerialLateWake);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(3, 96, 96),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(3, 96, 96),
               Mode::kWorkerReadySpin);
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(4, 6, 6),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(4, 6, 6),
               Mode::kInline);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(4, 7, 6),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(4, 7, 6),
               Mode::kSerialPrewake);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(6, 6, 7),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(6, 6, 7),
               Mode::kSerialPrewake);
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(7, 6, 8),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(7, 6, 8),
               Mode::kInline);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(7, 7, 8),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(7, 7, 8),
               Mode::kSerialPrewake);
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(7, 224, 16),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(7, 224, 16),
               Mode::kWorkerReadySpin);
 
-    EXPECT_EQ(renderer::DetermineRenderSchedulingMode(65, 2080, 2080),
+    EXPECT_EQ(gfx::renderer::DetermineRenderSchedulingMode(65, 2080, 2080),
               Mode::kSerialPrewake);
 }
 
 TEST(ScheduleTest, MapsRenderBonesToUpdateWorkers) {
     constexpr size_t kWorkerCount = 7;
     constexpr size_t kRenderBoneCount = kWorkerCount * 32;
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(kRenderBoneCount + 6);
     std::vector<uint16_t> render_bone_indices(kRenderBoneCount);
     for (size_t index = 0; index < render_bone_indices.size(); ++index) {
         render_bone_indices[index] = static_cast<uint16_t>(index + 3);
     }
 
-    renderer::RenderSchedule schedule;
+    gfx::renderer::RenderSchedule schedule;
     ASSERT_TRUE(
         schedule.Update(bones, render_bone_indices, kWorkerCount).ok());
     ASSERT_EQ(schedule.mode,
-              renderer::RenderSchedulingMode::kWorkerReadySpin);
+              gfx::renderer::RenderSchedulingMode::kWorkerReadySpin);
     ASSERT_EQ(schedule.bone_update_owners.size(), bones.list.size());
     EXPECT_EQ(schedule.bone_update_owners[0], UINT8_MAX);
     EXPECT_EQ(schedule.bone_update_owners[1], UINT8_MAX);
     EXPECT_EQ(schedule.bone_update_owners[2], UINT8_MAX);
     for (size_t worker_index = 0; worker_index < kWorkerCount;
          ++worker_index) {
-        const auto [begin, end] = renderer::DetermineTaskRange(
+        const auto [begin, end] = gfx::renderer::DetermineTaskRange(
             worker_index, kWorkerCount, render_bone_indices.size());
         for (size_t index = begin; index < end; ++index) {
             EXPECT_EQ(schedule.bone_update_owners[render_bone_indices[index]],
@@ -420,7 +420,7 @@ TEST(ScheduleTest, MapsRenderBonesToUpdateWorkers) {
                     .Update(bones, std::span(render_bone_indices).first(1),
                             kWorkerCount)
                     .ok());
-    EXPECT_EQ(schedule.mode, renderer::RenderSchedulingMode::kInline);
+    EXPECT_EQ(schedule.mode, gfx::renderer::RenderSchedulingMode::kInline);
     EXPECT_TRUE(schedule.bone_update_owners.empty());
 }
 

@@ -26,5 +26,14 @@
 
 #define YSM_PP_FOR_EACH_AGAIN() YSM_PP_FOR_EACH_HELPER
 
+#define YSM_PP_MAP_COMMA(macro, ...) \
+    __VA_OPT__(YSM_PP_EXPAND(YSM_PP_MAP_COMMA_HELPER(macro, __VA_ARGS__)))
+
+#define YSM_PP_MAP_COMMA_HELPER(macro, a1, ...) \
+    macro(a1) \
+    __VA_OPT__(, YSM_PP_OBSTRUCT(YSM_PP_MAP_COMMA_AGAIN)()(macro, __VA_ARGS__))
+
+#define YSM_PP_MAP_COMMA_AGAIN() YSM_PP_MAP_COMMA_HELPER
+
 #define YSM_SV_LITERAL(LIT) \
     std::string_view((LIT), sizeof(LIT) - 1)

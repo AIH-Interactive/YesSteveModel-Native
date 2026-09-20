@@ -13,10 +13,10 @@
 
 #include <benchmark/benchmark.h>
 
-#include "bake/baked_model.h"
+#include "gfx/bake/baked_model.h"
 #include "cpu.h"
 #include "inline.h"
-#include "renderer/model_state.h"
+#include "gfx/renderer/model_state.h"
 
 namespace ysm::benchmarking {
 namespace {
@@ -24,10 +24,10 @@ namespace {
 constexpr size_t kFrameCount = 8;
 constexpr float kPoseTolerance = 0.00001f;
 
-using ExtractOutput = renderer::ModelState::ExtractOutput;
+using ExtractOutput = gfx::renderer::ModelState::ExtractOutput;
 using ExtractKernel = absl::StatusOr<ExtractOutput> (*)(
-    renderer::ModelState&, const std::shared_ptr<bake::BakedModel>&,
-    std::span<const renderer::BoneAttribute>, size_t);
+    gfx::renderer::ModelState&, const std::shared_ptr<gfx::bake::BakedModel>&,
+    std::span<const gfx::renderer::BoneAttribute>, size_t);
 
 struct Variant {
     std::string_view isa;
@@ -35,12 +35,12 @@ struct Variant {
 };
 
 using Frames =
-    std::array<std::vector<renderer::BoneAttribute>, kFrameCount>;
+    std::array<std::vector<gfx::renderer::BoneAttribute>, kFrameCount>;
 
 YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractGeneric(
-    renderer::ModelState& state,
-    const std::shared_ptr<bake::BakedModel>& model,
-    std::span<const renderer::BoneAttribute> attributes,
+    gfx::renderer::ModelState& state,
+    const std::shared_ptr<gfx::bake::BakedModel>& model,
+    std::span<const gfx::renderer::BoneAttribute> attributes,
     size_t locator_capacity) {
     return state.Extract(simd::Tag<simd::Type::kNone>{}, model, attributes,
                          locator_capacity);
@@ -49,27 +49,27 @@ YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractGeneric(
 #ifdef YSM_X64
 
 YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractSse41(
-    renderer::ModelState& state,
-    const std::shared_ptr<bake::BakedModel>& model,
-    std::span<const renderer::BoneAttribute> attributes,
+    gfx::renderer::ModelState& state,
+    const std::shared_ptr<gfx::bake::BakedModel>& model,
+    std::span<const gfx::renderer::BoneAttribute> attributes,
     size_t locator_capacity) {
     return state.Extract(simd::Tag<simd::Type::SSE41>{}, model, attributes,
                          locator_capacity);
 }
 
 YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractAvx2(
-    renderer::ModelState& state,
-    const std::shared_ptr<bake::BakedModel>& model,
-    std::span<const renderer::BoneAttribute> attributes,
+    gfx::renderer::ModelState& state,
+    const std::shared_ptr<gfx::bake::BakedModel>& model,
+    std::span<const gfx::renderer::BoneAttribute> attributes,
     size_t locator_capacity) {
     return state.Extract(simd::Tag<simd::Type::AVX2>{}, model, attributes,
                          locator_capacity);
 }
 
 YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractAvx512(
-    renderer::ModelState& state,
-    const std::shared_ptr<bake::BakedModel>& model,
-    std::span<const renderer::BoneAttribute> attributes,
+    gfx::renderer::ModelState& state,
+    const std::shared_ptr<gfx::bake::BakedModel>& model,
+    std::span<const gfx::renderer::BoneAttribute> attributes,
     size_t locator_capacity) {
     return state.Extract(simd::Tag<simd::Type::AVX512>{}, model, attributes,
                          locator_capacity);
@@ -90,9 +90,9 @@ std::vector<Variant> SupportedVariants() {
 #elif defined(YSM_ARM64)
 
 YSM_NOINLINE absl::StatusOr<ExtractOutput> ExtractNeon(
-    renderer::ModelState& state,
-    const std::shared_ptr<bake::BakedModel>& model,
-    std::span<const renderer::BoneAttribute> attributes,
+    gfx::renderer::ModelState& state,
+    const std::shared_ptr<gfx::bake::BakedModel>& model,
+    std::span<const gfx::renderer::BoneAttribute> attributes,
     size_t locator_capacity) {
     return state.Extract(simd::Tag<simd::Type::NEON>{}, model, attributes,
                          locator_capacity);
@@ -104,7 +104,7 @@ std::vector<Variant> SupportedVariants() {
 
 #endif
 
-size_t AppendBalancedSubtree(bake::BakedModelBones& bones,
+size_t AppendBalancedSubtree(gfx::bake::BakedModelBones& bones,
                              size_t logical_index, size_t bone_count,
                              uint32_t parent_index, uint32_t depth) {
     if (logical_index >= bone_count) {
@@ -132,12 +132,12 @@ size_t AppendBalancedSubtree(bake::BakedModelBones& bones,
     return bone_index;
 }
 
-std::shared_ptr<bake::BakedModel> MakeModel(size_t bone_count) {
-    bake::BakedModelBones bones;
+std::shared_ptr<gfx::bake::BakedModel> MakeModel(size_t bone_count) {
+    gfx::bake::BakedModelBones bones;
     bones.list.reserve(bone_count);
     AppendBalancedSubtree(bones, 0, bone_count, UINT32_MAX, 0);
 
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout_no_culling.resize(bone_count);
     bones.sorted_bone_indices.reserve(bone_count);
     bones.cube_indices_cache.resize(bone_count);
@@ -164,7 +164,7 @@ std::shared_ptr<bake::BakedModel> MakeModel(size_t bone_count) {
         partition.full_vertex_count = 4;
         partition.culling_vertex_count = 4;
     }
-    return std::make_shared<bake::BakedModel>(bake::BakedModelInfo{},
+    return std::make_shared<gfx::bake::BakedModel>(gfx::bake::BakedModelInfo{},
                                                std::move(bones),
                                                std::move(cubes));
 }
@@ -205,13 +205,13 @@ struct Fixture {
         : model(MakeModel(bone_count)),
           frames(MakeFrames(bone_count)) {}
 
-    std::shared_ptr<bake::BakedModel> model;
+    std::shared_ptr<gfx::bake::BakedModel> model;
     Frames frames;
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 };
 
-float MaxPoseDifference(const renderer::BonePose& left,
-                        const renderer::BonePose& right) noexcept {
+float MaxPoseDifference(const gfx::renderer::BonePose& left,
+                        const gfx::renderer::BonePose& right) noexcept {
     float difference = 0.0f;
     for (size_t column = 0; column < 4; ++column) {
         for (size_t row = 0; row < 4; ++row) {

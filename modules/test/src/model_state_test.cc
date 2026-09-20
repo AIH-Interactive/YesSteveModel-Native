@@ -9,17 +9,17 @@
 
 #include <gtest/gtest.h>
 
-#include "bake/baked_model.h"
+#include "gfx/bake/baked_model.h"
 #include "buffer.h"
 #include "cpu.h"
-#include "renderer/model_state.h"
-#include "renderer/render.h"
-#include "renderer/vertex/iris_56.h"
-#include "renderer/vertex/vanilla.h"
+#include "gfx/renderer/model_state.h"
+#include "gfx/renderer/render.h"
+#include "gfx/renderer/vertex/iris_56.h"
+#include "gfx/renderer/vertex/vanilla.h"
 
 namespace ysm::test {
 namespace {
-using Group = bake::CubeGroup<simd::Width::B128, false>;
+using Group = gfx::bake::CubeGroup<simd::Width::B128, false>;
 constexpr simd::Tag<simd::Type::kNone> kGenericTag;
 
 Group MakeQuadGroup(uint32_t bone_index) {
@@ -45,11 +45,11 @@ Group MakeQuadGroup(uint32_t bone_index) {
     return group;
 }
 
-std::shared_ptr<bake::BakedModel> MakeModel() {
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+std::shared_ptr<gfx::bake::BakedModel> MakeModel() {
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout_no_culling = {MakeQuadGroup(1), MakeQuadGroup(3)};
 
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(4);
     bones.list[0].parent_index = UINT32_MAX;
     bones.list[0].subtree_end = 4;
@@ -85,20 +85,20 @@ std::shared_ptr<bake::BakedModel> MakeModel() {
     second.cube_count = 1;
     second.full_vertex_count = 4;
     second.culling_vertex_count = 4;
-    return std::make_shared<bake::BakedModel>(bake::BakedModelInfo{},
+    return std::make_shared<gfx::bake::BakedModel>(gfx::bake::BakedModelInfo{},
                                               std::move(bones),
                                               std::move(cubes));
 }
 
-std::shared_ptr<bake::BakedModel> MakeFlatModel(size_t bone_count) {
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+std::shared_ptr<gfx::bake::BakedModel> MakeFlatModel(size_t bone_count) {
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout_no_culling.reserve(bone_count);
     for (size_t bone_index = 0; bone_index < bone_count; ++bone_index) {
         cubes.cutout_no_culling.push_back(
             MakeQuadGroup(static_cast<uint32_t>(bone_index)));
     }
 
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(bone_count);
     bones.sorted_bone_indices.reserve(bone_count);
     bones.cube_indices_cache.resize(bone_count);
@@ -124,13 +124,13 @@ std::shared_ptr<bake::BakedModel> MakeFlatModel(size_t bone_count) {
         partition.full_vertex_count = 4;
         partition.culling_vertex_count = 4;
     }
-    return std::make_shared<bake::BakedModel>(bake::BakedModelInfo{},
+    return std::make_shared<gfx::bake::BakedModel>(gfx::bake::BakedModelInfo{},
                                               std::move(bones),
                                               std::move(cubes));
 }
 
-std::vector<renderer::BoneAttribute> MakeAttributes() {
-    std::vector<renderer::BoneAttribute> attributes(4);
+std::vector<gfx::renderer::BoneAttribute> MakeAttributes() {
+    std::vector<gfx::renderer::BoneAttribute> attributes(4);
     for (auto& attribute : attributes) {
         attribute.scale[0] = 1.0f;
         attribute.scale[1] = 1.0f;
@@ -140,8 +140,8 @@ std::vector<renderer::BoneAttribute> MakeAttributes() {
     return attributes;
 }
 
-std::vector<renderer::BoneAttribute> MakeFlatAttributes(size_t bone_count) {
-    std::vector<renderer::BoneAttribute> attributes(bone_count);
+std::vector<gfx::renderer::BoneAttribute> MakeFlatAttributes(size_t bone_count) {
+    std::vector<gfx::renderer::BoneAttribute> attributes(bone_count);
     for (size_t bone_index = 0; bone_index < bone_count; ++bone_index) {
         auto& attribute = attributes[bone_index];
         attribute.position[0] = static_cast<float>(bone_index) * -16.0f;
@@ -163,7 +163,7 @@ TEST(ModelStateTest, ExtractsPoseLocatorsAndReusesSchedule) {
     attributes[0].position[0] = 16.0f;
     attributes[1].rotation[2] = std::numbers::pi_v<float> * 0.5f;
     attributes[1].scale[0] = 2.0f;
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 
     auto first =
         state.Extract(kGenericTag, model, attributes, attributes.size());
@@ -214,7 +214,7 @@ TEST(ModelStateTest, ExtractsIndependentBoneRenderAttributes) {
     attributes[0].transparency_glow = static_cast<float>(0x047F);
     attributes[1].color = static_cast<float>(0x060504);
     attributes[1].transparency_glow = static_cast<float>(0xFFFF);
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 
     auto extracted =
         state.Extract(kGenericTag, model, attributes, attributes.size());
@@ -240,7 +240,7 @@ TEST(ModelStateTest, RejectsInvalidPackedBoneRenderAttributes) {
     {
         auto attributes = MakeAttributes();
         attributes[0].color = 0.5f;
-        renderer::ModelState state;
+        gfx::renderer::ModelState state;
         auto extracted =
             state.Extract(kGenericTag, model, attributes, attributes.size());
         EXPECT_FALSE(extracted.ok());
@@ -249,7 +249,7 @@ TEST(ModelStateTest, RejectsInvalidPackedBoneRenderAttributes) {
     {
         auto attributes = MakeAttributes();
         attributes[0].color = 16777216.0f;
-        renderer::ModelState state;
+        gfx::renderer::ModelState state;
         auto extracted =
             state.Extract(kGenericTag, model, attributes, attributes.size());
         EXPECT_FALSE(extracted.ok());
@@ -258,7 +258,7 @@ TEST(ModelStateTest, RejectsInvalidPackedBoneRenderAttributes) {
     {
         auto attributes = MakeAttributes();
         attributes[0].transparency_glow = static_cast<float>(0x10FF);
-        renderer::ModelState state;
+        gfx::renderer::ModelState state;
         auto extracted =
             state.Extract(kGenericTag, model, attributes, attributes.size());
         EXPECT_FALSE(extracted.ok());
@@ -272,7 +272,7 @@ TEST(ModelStateTest, DetectsEqualSizedBoneIndexChange) {
 #endif
     auto model = MakeModel();
     auto attributes = MakeAttributes();
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 
     attributes[1].cubes_hidden = 1.0f;
     auto first =
@@ -304,7 +304,7 @@ TEST(ModelStateTest, PrunesHiddenInvalidAndZeroScaleSubtrees) {
 #endif
     auto model = MakeModel();
     auto attributes = MakeAttributes();
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 
     attributes[1].children_hidden = 1.0f;
     auto children_hidden =
@@ -347,7 +347,7 @@ TEST(ModelStateTest, MaintainsBoneNormalInParallel) {
 #endif
     auto model = MakeModel();
     auto attributes = MakeAttributes();
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
 
     attributes[0].scale[0] = -2.0f;
     attributes[0].scale[1] = -2.0f;
@@ -399,47 +399,47 @@ TEST(ModelStateTest, SnapshotRendersRepeatedlyWithTrustedNormalizedNormal) {
 #endif
     auto model = MakeModel();
     auto attributes = MakeAttributes();
-    renderer::ModelState state;
+    gfx::renderer::ModelState state;
     auto extracted =
         state.Extract(kGenericTag, model, attributes, attributes.size());
     ASSERT_TRUE(extracted.ok()) << extracted.status();
 
-    renderer::RenderParameters parameters{};
+    gfx::renderer::RenderParameters parameters{};
     glm_mat4_identity(parameters.model);
     glm_mat4_identity(parameters.view);
     glm_mat4_identity(parameters.projection);
     glm_mat3_identity(parameters.normal);
-    parameters.ctx = renderer::RenderContext::kLevel;
+    parameters.ctx = gfx::renderer::RenderContext::kLevel;
     parameters.light = 0x1234abcd;
     parameters.overlay = 0x01020304;
     parameters.color.packed = 0xffffffff;
     std::vector<Byte> first(extracted->vertex_count *
-                            renderer::vertex::VanillaVertex::kSize);
+                            gfx::renderer::vertex::VanillaVertex::kSize);
     std::vector<Byte> second(first.size());
 
-    ASSERT_TRUE(renderer::Render(first, renderer::VertexKind::kVanilla, state,
+    ASSERT_TRUE(gfx::renderer::Render(first, gfx::renderer::VertexKind::kVanilla, state,
                                  parameters)
                     .ok());
-    ASSERT_TRUE(renderer::Render(second, renderer::VertexKind::kVanilla, state,
+    ASSERT_TRUE(gfx::renderer::Render(second, gfx::renderer::VertexKind::kVanilla, state,
                                  parameters)
                     .ok());
     EXPECT_EQ(first, second);
     const auto* vertices =
-        reinterpret_cast<const renderer::vertex::VanillaVertex*>(first.data());
+        reinterpret_cast<const gfx::renderer::vertex::VanillaVertex*>(first.data());
     EXPECT_EQ(vertices[0].light, parameters.light);
     EXPECT_EQ(vertices[0].normal & 0xffU, 0U);
     EXPECT_EQ((vertices[0].normal >> 16) & 0xffU, 0U);
     const auto packed_y = (vertices[0].normal >> 8) & 0xffU;
     EXPECT_TRUE(packed_y == 0x7fU || packed_y == 0x81U);
 
-    parameters.ctx = renderer::RenderContext::kIrisShadow;
+    parameters.ctx = gfx::renderer::RenderContext::kIrisShadow;
     std::vector<Byte> shadow(extracted->vertex_count *
-                             renderer::vertex::Iris56Vertex::kSize);
-    ASSERT_TRUE(renderer::Render(shadow, renderer::VertexKind::kIris56, state,
+                             gfx::renderer::vertex::Iris56Vertex::kSize);
+    ASSERT_TRUE(gfx::renderer::Render(shadow, gfx::renderer::VertexKind::kIris56, state,
                                  parameters)
                     .ok());
     const auto* shadow_vertices =
-        reinterpret_cast<const renderer::vertex::Iris56Vertex*>(shadow.data());
+        reinterpret_cast<const gfx::renderer::vertex::Iris56Vertex*>(shadow.data());
     EXPECT_NE(shadow_vertices[0].normal, 0U);
     EXPECT_EQ(shadow_vertices[0].color, 0U);
     EXPECT_EQ(shadow_vertices[0].tangent, 0U);
@@ -450,18 +450,18 @@ TEST(ModelStateTest, ProductionPolicyRendersPrewakeAndWorkerReadySchedules) {
 #ifdef YSM_X64
     simd::Mock(simd::Type::SSE41);
 #endif
-    renderer::RenderParameters parameters{};
+    gfx::renderer::RenderParameters parameters{};
     glm_mat4_identity(parameters.model);
     glm_mat4_identity(parameters.view);
     glm_mat4_identity(parameters.projection);
     glm_mat3_identity(parameters.normal);
-    parameters.ctx = renderer::RenderContext::kLevel;
+    parameters.ctx = gfx::renderer::RenderContext::kLevel;
     parameters.light = 0x1234abcd;
     parameters.color.packed = 0xffffffff;
 
     const auto run_case =
-        [&](size_t bone_count, renderer::RenderSchedulingMode expected_mode,
-            size_t repetitions, renderer::ModelState& state,
+        [&](size_t bone_count, gfx::renderer::RenderSchedulingMode expected_mode,
+            size_t repetitions, gfx::renderer::ModelState& state,
             std::vector<Byte>& output) {
         auto model = MakeFlatModel(bone_count);
         auto attributes = MakeFlatAttributes(bone_count);
@@ -478,10 +478,10 @@ TEST(ModelStateTest, ProductionPolicyRendersPrewakeAndWorkerReadySchedules) {
         }
 
         output.resize(extracted->vertex_count *
-                      renderer::vertex::VanillaVertex::kSize);
+                      gfx::renderer::vertex::VanillaVertex::kSize);
         for (size_t repetition = 0; repetition < repetitions; ++repetition) {
             const auto status =
-                renderer::Render(output, renderer::VertexKind::kVanilla,
+                gfx::renderer::Render(output, gfx::renderer::VertexKind::kVanilla,
                                  state, parameters);
             if (!status.ok()) {
                 ADD_FAILURE() << status;
@@ -490,7 +490,7 @@ TEST(ModelStateTest, ProductionPolicyRendersPrewakeAndWorkerReadySchedules) {
         }
 
         const auto* vertices =
-            reinterpret_cast<const renderer::vertex::VanillaVertex*>(
+            reinterpret_cast<const gfx::renderer::vertex::VanillaVertex*>(
                 output.data());
         for (size_t bone_index = 0; bone_index < bone_count; ++bone_index) {
             const auto& first_vertex = vertices[bone_index * 4];
@@ -503,27 +503,27 @@ TEST(ModelStateTest, ProductionPolicyRendersPrewakeAndWorkerReadySchedules) {
         return true;
     };
 
-    renderer::ModelState prewake_state;
+    gfx::renderer::ModelState prewake_state;
     std::vector<Byte> prewake_output;
-    ASSERT_TRUE(run_case(9, renderer::RenderSchedulingMode::kSerialPrewake, 8,
+    ASSERT_TRUE(run_case(9, gfx::renderer::RenderSchedulingMode::kSerialPrewake, 8,
                          prewake_state, prewake_output));
 
-    renderer::ModelState worker_ready_state;
+    gfx::renderer::ModelState worker_ready_state;
     std::vector<Byte> worker_ready_output;
-    ASSERT_TRUE(run_case(224, renderer::RenderSchedulingMode::kWorkerReadySpin,
+    ASSERT_TRUE(run_case(224, gfx::renderer::RenderSchedulingMode::kWorkerReadySpin,
                          32, worker_ready_state, worker_ready_output));
 
-    auto& last_pose = const_cast<renderer::BonePose&>(
+    auto& last_pose = const_cast<gfx::renderer::BonePose&>(
         worker_ready_state.PoseView().bone_poses.back());
     const auto previous = last_pose.pose[0][0];
     last_pose.pose[0][0] = std::numeric_limits<float>::infinity();
     const auto error =
-        renderer::Render(worker_ready_output, renderer::VertexKind::kVanilla,
+        gfx::renderer::Render(worker_ready_output, gfx::renderer::VertexKind::kVanilla,
                          worker_ready_state, parameters);
     EXPECT_EQ(error.code(), absl::StatusCode::kInternal);
     last_pose.pose[0][0] = previous;
-    EXPECT_TRUE(renderer::Render(worker_ready_output,
-                                 renderer::VertexKind::kVanilla,
+    EXPECT_TRUE(gfx::renderer::Render(worker_ready_output,
+                                 gfx::renderer::VertexKind::kVanilla,
                                  worker_ready_state, parameters)
                     .ok());
 }

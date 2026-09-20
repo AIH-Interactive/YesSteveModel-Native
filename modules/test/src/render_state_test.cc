@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "cpu.h"
-#include "renderer/render.h"
-#include "renderer/render_state.h"
+#include "gfx/renderer/render.h"
+#include "gfx/renderer/render_state.h"
 
 namespace ysm::test {
 namespace {
@@ -61,13 +61,13 @@ void ReferenceFacingCoefficient(const mat4 matrix, vec4 destination) {
 }
 
 struct RenderStateInput {
-    std::shared_ptr<bake::BakedModel> model;
-    std::span<renderer::BonePose> poses;
-    renderer::ModelState model_state;
+    std::shared_ptr<gfx::bake::BakedModel> model;
+    std::span<gfx::renderer::BonePose> poses;
+    gfx::renderer::ModelState model_state;
 };
 
-void CopyPose(const math::PoseStack::Pose& source,
-              renderer::BonePose& destination) {
+void CopyPose(const gfx::math::PoseStack::Pose& source,
+              gfx::renderer::BonePose& destination) {
     glm_mat4_copy(source.pose, destination.pose);
     glm_mat3_copy(source.normal, destination.normal);
     destination.uniform_scale = source.uniform_scale;
@@ -76,17 +76,17 @@ void CopyPose(const math::PoseStack::Pose& source,
 }
 
 absl::StatusOr<std::unique_ptr<RenderStateInput>> MakeRenderStateInput(
-    std::span<const renderer::BonePose> source_poses,
+    std::span<const gfx::renderer::BonePose> source_poses,
     std::span<const uint16_t> render_bone_indices,
-    const bake::BakedModelBones& source_bones, bool has_pbr) {
+    const gfx::bake::BakedModelBones& source_bones, bool has_pbr) {
     if (source_bones.list.size() != source_poses.size()) {
         return absl::InvalidArgumentError("Inconsistent test bone count.");
     }
 
     auto output = std::make_unique<RenderStateInput>();
-    bake::BakedModelCubes<simd::Width::B128> cubes;
+    gfx::bake::BakedModelCubes<simd::Width::B128> cubes;
     cubes.cutout_no_culling.resize(render_bone_indices.size());
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(source_poses.size());
     bones.sorted_bone_indices.resize(source_poses.size());
     bones.cube_indices_cache.resize(render_bone_indices.size());
@@ -126,10 +126,10 @@ absl::StatusOr<std::unique_ptr<RenderStateInput>> MakeRenderStateInput(
         partition.culling_vertex_count = 4;
     }
 
-    output->model = std::make_shared<bake::BakedModel>(
-        bake::BakedModelInfo{.has_pbr = has_pbr}, std::move(bones),
+    output->model = std::make_shared<gfx::bake::BakedModel>(
+        gfx::bake::BakedModelInfo{.has_pbr = has_pbr}, std::move(bones),
         std::move(cubes));
-    std::vector<renderer::BoneAttribute> attributes(source_poses.size());
+    std::vector<gfx::renderer::BoneAttribute> attributes(source_poses.size());
     for (auto& attribute : attributes) {
         attribute.scale[0] = 1.0f;
         attribute.scale[1] = 1.0f;
@@ -141,14 +141,14 @@ absl::StatusOr<std::unique_ptr<RenderStateInput>> MakeRenderStateInput(
         return extracted.status();
     }
     const auto owned_poses = output->model_state.PoseView().bone_poses;
-    output->poses = {const_cast<renderer::BonePose*>(owned_poses.data()),
+    output->poses = {const_cast<gfx::renderer::BonePose*>(owned_poses.data()),
                      owned_poses.size()};
     std::copy(source_poses.begin(), source_poses.end(), output->poses.begin());
     return output;
 }
 
-absl::Status UpdateRenderState(renderer::RenderState& output,
-                               const renderer::RenderParameters& params,
+absl::Status UpdateRenderState(gfx::renderer::RenderState& output,
+                               const gfx::renderer::RenderParameters& params,
                                const RenderStateInput& input) {
     auto status =
         output.UpdateCommon(kGenericTag, params, input.model_state);
@@ -161,7 +161,7 @@ absl::Status UpdateRenderState(renderer::RenderState& output,
 }  // namespace
 
 TEST(RenderStateTest, Update) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = -2.0f;
     params.model[1][1] = 3.0f;
@@ -181,9 +181,9 @@ TEST(RenderStateTest, Update) {
     params.normal[2][2] = 2.0f;
     params.light = 0x1234abcd;
 
-    std::vector<renderer::BonePose> bone_states(1);
+    std::vector<gfx::renderer::BonePose> bone_states(1);
     const std::vector<uint16_t> bone_indices{0};
-    renderer::ModelPoseView source{bone_states, bone_indices};
+    gfx::renderer::ModelPoseView source{bone_states, bone_indices};
     glm_mat4_identity(bone_states[0].pose);
     bone_states[0].pose[0][0] = 0.0f;
     bone_states[0].pose[0][1] = 1.0f;
@@ -197,12 +197,12 @@ TEST(RenderStateTest, Update) {
     bone_states[0].normal[1][0] = -1.0f;
     bone_states[0].normal[1][1] = 0.0f;
 
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     bones.list[0].solid = false;
     auto input = MakeRenderStateInput(bone_states, bone_indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
 
     mat4 clip_from_local;
     mat4 view_model;
@@ -275,7 +275,7 @@ TEST(RenderStateTest, Update) {
 }
 
 TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     glm_mat4_identity(params.view);
     glm_mat4_identity(params.projection);
@@ -286,24 +286,24 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
     params.color.components.b = 255;
     params.color.components.a = 128;
 
-    std::vector<renderer::BonePose> poses(1);
+    std::vector<gfx::renderer::BonePose> poses(1);
     poses[0].color.components.r = 10;
     poses[0].color.components.g = 20;
     poses[0].color.components.b = 30;
     poses[0].color.components.a = 64;
     poses[0].glowing = 0xFF;
     const std::vector<uint16_t> bone_indices{0};
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     bones.list[0].solid = true;
     auto input = MakeRenderStateInput(poses, bone_indices, bones, false);
     ASSERT_TRUE(input.ok()) << input.status();
 
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
     const auto& state = transformed.GetBoneState(0);
-    renderer::Color opaque{.packed = state.packed_opaque_color};
-    renderer::Color translucent{.packed = state.packed_translucent_color};
+    gfx::renderer::Color opaque{.packed = state.packed_opaque_color};
+    gfx::renderer::Color translucent{.packed = state.packed_translucent_color};
     EXPECT_EQ(opaque.components.r, 10);
     EXPECT_EQ(opaque.components.g, 20);
     EXPECT_EQ(opaque.components.b, 30);
@@ -318,7 +318,7 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
     (*input)->poses[0].color.components.g = 255;
     (*input)->poses[0].color.components.b = 255;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
-    renderer::Color white{
+    gfx::renderer::Color white{
         .packed = transformed.GetBoneState(0).packed_opaque_color};
     EXPECT_EQ(white.components.r, 255);
     EXPECT_EQ(white.components.g, 255);
@@ -328,7 +328,7 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
     (*input)->poses[0].color.components.g = 0;
     (*input)->poses[0].color.components.b = 0;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
-    renderer::Color red{
+    gfx::renderer::Color red{
         .packed = transformed.GetBoneState(0).packed_opaque_color};
     EXPECT_EQ(red.components.r, 255);
     EXPECT_EQ(red.components.g, 0);
@@ -336,7 +336,7 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
 
     (*input)->poses[0].color.components.r = 0;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
-    renderer::Color black{
+    gfx::renderer::Color black{
         .packed = transformed.GetBoneState(0).packed_opaque_color};
     EXPECT_EQ(black.components.r, 0);
     EXPECT_EQ(black.components.g, 0);
@@ -349,7 +349,7 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
     (*input)->poses[0].color.components.g = 255;
     (*input)->poses[0].color.components.b = 64;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
-    renderer::Color multiplied{
+    gfx::renderer::Color multiplied{
         .packed = transformed.GetBoneState(0).packed_opaque_color};
     EXPECT_EQ(multiplied.components.r, 100);
     EXPECT_EQ(multiplied.components.g, 100);
@@ -365,7 +365,7 @@ TEST(RenderStateTest, CombinesBoneColorTransparencyAndGlow) {
 }
 
 TEST(RenderStateTest, FactorizesFacingAcrossBonePose) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = -2.0f;
     params.model[1][1] = 3.0f;
@@ -385,16 +385,16 @@ TEST(RenderStateTest, FactorizesFacingAcrossBonePose) {
 
     simd::GenericTag tag;
 
-    std::vector<renderer::BonePose> bone_states(3);
+    std::vector<gfx::renderer::BonePose> bone_states(3);
     {
-        math::PoseStack stack;
+        gfx::math::PoseStack stack;
         stack.Translate(tag, 0.25f, -0.5f, 1.0f);
         stack.RotateZYX(tag, 0.2f, -0.4f, 0.3f);
         stack.Scale(tag, -2.0f, 2.0f, 2.0f);
         CopyPose(stack.Last(), bone_states[0]);
     }
     {
-        math::PoseStack stack;
+        gfx::math::PoseStack stack;
         stack.Translate(tag, -1.0f, 0.5f, -0.25f);
         stack.Scale(tag, 3.0f, 3.0f, 3.0f);
         stack.RotateZYX(simd::GenericTag{}, -0.1f, 0.5f, -0.25f);
@@ -402,7 +402,7 @@ TEST(RenderStateTest, FactorizesFacingAcrossBonePose) {
         CopyPose(stack.Last(), bone_states[1]);
     }
     {
-        math::PoseStack stack;
+        gfx::math::PoseStack stack;
         stack.Translate(tag, 0.5f, 1.0f, -2.0f);
         stack.RotateZYX(simd::GenericTag{}, 0.6f, 0.15f, -0.35f);
         stack.Scale(tag, 0.5f, 1.5f, 2.5f);
@@ -410,15 +410,15 @@ TEST(RenderStateTest, FactorizesFacingAcrossBonePose) {
     }
 
     const std::vector<uint16_t> indices{0, 1, 2};
-    renderer::ModelPoseView source{bone_states, indices};
-    bake::BakedModelBones bones;
+    gfx::renderer::ModelPoseView source{bone_states, indices};
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(bone_states.size());
     for (auto& bone : bones.list) {
         bone.solid = true;
     }
     auto input = MakeRenderStateInput(bone_states, indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
 
     mat4 view_model;
@@ -441,7 +441,7 @@ TEST(RenderStateTest, FactorizesFacingAcrossBonePose) {
 }
 
 TEST(RenderStateTest, UsesProvidedOuterNormalMatrix) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = 2.0f;
     params.model[1][0] = 0.75f;
@@ -456,16 +456,16 @@ TEST(RenderStateTest, UsesProvidedOuterNormalMatrix) {
     };
     glm_mat3_copy(expected, params.normal);
 
-    std::vector<renderer::BonePose> bone_states(1);
+    std::vector<gfx::renderer::BonePose> bone_states(1);
     glm_mat4_identity(bone_states[0].pose);
     glm_mat3_identity(bone_states[0].normal);
     const std::vector<uint16_t> indices{0};
-    renderer::ModelPoseView source{bone_states, indices};
-    bake::BakedModelBones bones;
+    gfx::renderer::ModelPoseView source{bone_states, indices};
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     auto input = MakeRenderStateInput(bone_states, indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
 
     for (size_t column = 0; column < 3; ++column) {
@@ -477,7 +477,7 @@ TEST(RenderStateTest, UsesProvidedOuterNormalMatrix) {
 }
 
 TEST(RenderStateTest, UsesPreNormalizedConformalOuterDirectionMatrix) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = 0.0f;
     params.model[0][1] = 2.0f;
@@ -493,16 +493,16 @@ TEST(RenderStateTest, UsesPreNormalizedConformalOuterDirectionMatrix) {
     };
     glm_mat3_copy(expected, params.normal);
 
-    std::vector<renderer::BonePose> bone_states(1);
+    std::vector<gfx::renderer::BonePose> bone_states(1);
     glm_mat4_identity(bone_states[0].pose);
     glm_mat3_identity(bone_states[0].normal);
     const std::vector<uint16_t> indices{0};
-    renderer::ModelPoseView source{bone_states, indices};
-    bake::BakedModelBones bones;
+    gfx::renderer::ModelPoseView source{bone_states, indices};
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     auto input = MakeRenderStateInput(bone_states, indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
 
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
     const auto& state = transformed.GetBoneState(0);
@@ -519,7 +519,7 @@ TEST(RenderStateTest, UsesPreNormalizedConformalOuterDirectionMatrix) {
 }
 
 TEST(RenderStateTest, CombinesOuterAndBoneTangentOrientation) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = -2.0f;
     params.model[1][1] = 2.0f;
@@ -528,17 +528,17 @@ TEST(RenderStateTest, CombinesOuterAndBoneTangentOrientation) {
     glm_mat4_identity(params.projection);
     glm_mat3_identity(params.normal);
 
-    std::vector<renderer::BonePose> bone_states(1);
+    std::vector<gfx::renderer::BonePose> bone_states(1);
     glm_mat4_identity(bone_states[0].pose);
     glm_mat3_identity(bone_states[0].normal);
     bone_states[0].tangent_orientation = -1.0f;
     const std::vector<uint16_t> indices{0};
-    renderer::ModelPoseView source{bone_states, indices};
-    bake::BakedModelBones bones;
+    gfx::renderer::ModelPoseView source{bone_states, indices};
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     auto input = MakeRenderStateInput(bone_states, indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
 
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
     EXPECT_TRUE(transformed.GetBoneState(0).uniform_scale);
@@ -546,7 +546,7 @@ TEST(RenderStateTest, CombinesOuterAndBoneTangentOrientation) {
 }
 
 TEST(RenderStateTest, NonPbrStillTracksNonUniformScaleForNormals) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     params.model[0][0] = 2.0f;
     params.model[1][1] = 3.0f;
@@ -554,17 +554,17 @@ TEST(RenderStateTest, NonPbrStillTracksNonUniformScaleForNormals) {
     glm_mat4_identity(params.projection);
     glm_mat3_identity(params.normal);
 
-    std::vector<renderer::BonePose> bone_states(1);
+    std::vector<gfx::renderer::BonePose> bone_states(1);
     glm_mat4_identity(bone_states[0].pose);
     glm_mat3_identity(bone_states[0].normal);
     bone_states[0].tangent_orientation = -1.0f;
     const std::vector<uint16_t> indices{0};
-    renderer::ModelPoseView source{bone_states, indices};
-    bake::BakedModelBones bones;
+    gfx::renderer::ModelPoseView source{bone_states, indices};
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(1);
     auto input = MakeRenderStateInput(bone_states, indices, bones, false);
     ASSERT_TRUE(input.ok()) << input.status();
-    renderer::RenderState transformed;
+    gfx::renderer::RenderState transformed;
 
     ASSERT_TRUE(UpdateRenderState(transformed, params, **input).ok());
     EXPECT_FALSE(transformed.GetBoneState(0).uniform_scale);
@@ -572,7 +572,7 @@ TEST(RenderStateTest, NonPbrStillTracksNonUniformScaleForNormals) {
 }
 
 TEST(RenderStateTest, SplitRangesMatchSerialUpdate) {
-    renderer::RenderParameters params{};
+    gfx::renderer::RenderParameters params{};
     glm_mat4_identity(params.model);
     glm_mat4_identity(params.view);
     glm_mat4_identity(params.projection);
@@ -582,9 +582,9 @@ TEST(RenderStateTest, SplitRangesMatchSerialUpdate) {
     params.model[3][2] = -2.0f;
     params.light = 0x12345678;
 
-    std::vector<renderer::BonePose> poses(4);
+    std::vector<gfx::renderer::BonePose> poses(4);
     for (size_t index = 0; index < poses.size(); ++index) {
-        math::PoseStack stack;
+        gfx::math::PoseStack stack;
         stack.Translate(simd::GenericTag{}, static_cast<float>(index) * 0.25f,
                         static_cast<float>(index) * -0.125f,
                         static_cast<float>(index) * 0.0625f);
@@ -594,7 +594,7 @@ TEST(RenderStateTest, SplitRangesMatchSerialUpdate) {
         CopyPose(stack.Last(), poses[index]);
     }
     const std::vector<uint16_t> indices{0, 1, 2, 3};
-    bake::BakedModelBones bones;
+    gfx::bake::BakedModelBones bones;
     bones.list.resize(poses.size());
     for (auto& bone : bones.list) {
         bone.solid = false;
@@ -602,10 +602,10 @@ TEST(RenderStateTest, SplitRangesMatchSerialUpdate) {
     auto input = MakeRenderStateInput(poses, indices, bones, true);
     ASSERT_TRUE(input.ok()) << input.status();
 
-    renderer::RenderState serial;
+    gfx::renderer::RenderState serial;
     ASSERT_TRUE(UpdateRenderState(serial, params, **input).ok());
 
-    renderer::RenderState split;
+    gfx::renderer::RenderState split;
     ASSERT_TRUE(
         split.UpdateCommon(kGenericTag, params, (**input).model_state).ok());
     ASSERT_TRUE(

@@ -74,4 +74,4 @@ class YsmConan(ConanFile):
     def build(self):
         cmake = CMake(self)
         cmake.configure()
-        cmake.build(target="ysm-lib")
+        cmake.build(target="ysm-lib-jni")

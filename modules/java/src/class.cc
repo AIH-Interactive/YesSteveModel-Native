@@ -1,16 +1,28 @@
 #include "java/class.h"
 
+#include <absl/synchronization/mutex.h>
 #include <absl/container/flat_hash_map.h>
 
 namespace ysm::java {
-static absl::flat_hash_map<std::string, jclass> g_class_cache;
+namespace {
+absl::flat_hash_map<std::string, jclass> g_class_cache;
+absl::Mutex g_lock;
+}
 
 absl::StatusOr<jclass> FindClass(JNIEnv_* env, CStringView class_name) {
-    auto iter = g_class_cache.find(class_name);
-    if (iter != g_class_cache.end()) {
-        return iter->second;
+    {
+        absl::ReaderMutexLock reader_lock(g_lock);
+        auto iter = g_class_cache.find(class_name);
+        if (iter != g_class_cache.end()) {
+            return iter->second;
+        }
     }
 
+    absl::WriterMutexLock writer_lock(g_lock);
+    if (auto iter = g_class_cache.find(class_name);
+        iter != g_class_cache.end()) {
+        return iter->second;
+    }
     auto clazz = env->FindClass(class_name.c_str());
     if (clazz == nullptr) [[unlikely]] {
         if (env->ExceptionCheck()) {

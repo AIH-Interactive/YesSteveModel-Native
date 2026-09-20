@@ -6,17 +6,15 @@
 namespace ysm::java {
 static_assert(sizeof(jchar) == 2);
 
-static jclass g_str_type = nullptr;
-
 jclass StrType(JNIEnv_* env) {
-    if (g_str_type == nullptr) [[unlikely]] {
+    static const jclass type = [&] {
         auto clazz = FindClass(env, "java/lang/String");
-        if (!clazz.ok()) [[unlikely]] {
-            throw new std::runtime_error("jstring type not found");
+        if (!clazz.ok()) {
+            throw std::runtime_error("jstring type not found");
         }
-        g_str_type = clazz.value();
-    }
-    return g_str_type;
+        return clazz.value();
+    }();
+    return type;
 }
 
 Ref<jstring> U8ToStr(JNIEnv_* env, CStringView str) {

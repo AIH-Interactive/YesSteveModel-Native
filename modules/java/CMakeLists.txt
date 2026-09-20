@@ -17,3 +17,4 @@ else ()
 endif ()
 
 target_link_libraries(ysm-java PUBLIC ysm-core jni)
+target_link_libraries(ysm-java PRIVATE absl::synchronization)
